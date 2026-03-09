@@ -28,30 +28,30 @@ class LockedAppsNotifier extends StateNotifier<List<LockedApp>> {
   }
 
   Future<void> addApp(LockedApp app) async {
-    if (!state.any((a) => a.packageName == app.packageName)) {
-      state = [...state, app];
-      await _service.saveLockedApps(state);
-    }
+    await _service.addLockedApp(app);
+    await _loadApps();
   }
 
   Future<void> removeApp(String packageName) async {
-    state = state.where((a) => a.packageName != packageName).toList();
-    await _service.saveLockedApps(state);
+    await _service.removeLockedApp(packageName);
+    await _loadApps();
   }
 }
 
+// Theme Provider
 final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeMode>((ref) {
   return ThemeNotifier();
 });
 
 class ThemeNotifier extends StateNotifier<ThemeMode> {
-  ThemeNotifier() : super(ThemeMode.dark) {
+  ThemeNotifier() : super(ThemeMode.system) {
     _loadTheme();
   }
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('is_dark_theme') ?? true;
+    final isDark = prefs.getBool('is_dark_theme');
+    if (isDark == null) return;
     state = isDark ? ThemeMode.dark : ThemeMode.light;
   }
 

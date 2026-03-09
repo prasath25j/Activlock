@@ -1,17 +1,23 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:usage_stats/usage_stats.dart';
+import '../models/exercise_type.dart';
 
 class UsageService {
   static const String _keyLastResetDate = 'last_reset_date';
   static const String _keyDailyUnlockCount = 'daily_unlock_count';
   static const String _keyDailyEmergencyCount = 'daily_emergency_count';
 
+  static const String _keyTotalSquats = 'total_squats';
+  static const String _keyTotalPushups = 'total_pushups';
+  static const String _keyTotalSteps = 'total_steps_unlock';
+
   // New Keys for User Settings
   static const String _keyMaxDailyUnlocks = 'max_daily_unlocks';
   static const String _keyMaxEmergency = 'max_emergency_usage';
 
   // Default values if not set
-  static const int _defaultMaxUnlocks = 3;
-  static const int _defaultMaxEmergency = 1;
+  static const int _defaultMaxUnlocks = 10;
+  static const int _defaultMaxEmergency = 3;
 
   Future<void> _checkAndResetDailyCounts() async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,10 +74,23 @@ class UsageService {
     return count < limit;
   }
 
-  Future<void> incrementUnlockCount() async {
+  Future<void> incrementUnlockCount({ExerciseType? type, int reps = 0}) async {
     final prefs = await SharedPreferences.getInstance();
     final count = prefs.getInt(_keyDailyUnlockCount) ?? 0;
     await prefs.setInt(_keyDailyUnlockCount, count + 1);
+
+    if (type != null && reps > 0) {
+      if (type == ExerciseType.squat) {
+        final current = prefs.getInt(_keyTotalSquats) ?? 0;
+        await prefs.setInt(_keyTotalSquats, current + reps);
+      } else if (type == ExerciseType.pushup) {
+        final current = prefs.getInt(_keyTotalPushups) ?? 0;
+        await prefs.setInt(_keyTotalPushups, current + reps);
+      } else if (type == ExerciseType.steps) {
+        final current = prefs.getInt(_keyTotalSteps) ?? 0;
+        await prefs.setInt(_keyTotalSteps, current + reps);
+      }
+    }
   }
 
   Future<void> incrementEmergencyCount() async {
@@ -88,6 +107,43 @@ class UsageService {
       'emergency': prefs.getInt(_keyDailyEmergencyCount) ?? 0,
       'maxUnlocks': await getMaxDailyUnlocks(),
       'maxEmergency': await getMaxEmergencyUsage(),
+      'totalSquats': prefs.getInt(_keyTotalSquats) ?? 0,
+      'totalPushups': prefs.getInt(_keyTotalPushups) ?? 0,
+      'totalSteps': prefs.getInt(_keyTotalSteps) ?? 0,
     };
+  }
+
+  Future<Map<String, Duration>> getAppScreenTime(List<String> packageNames) async {
+    DateTime endDate = DateTime.now();
+    DateTime startDate = DateTime(endDate.year, endDate.month, endDate.day);
+
+    Map<String, Duration> screenTimeMap = {};
+
+    try {
+      bool hasPermission = await UsageStats.checkUsagePermission() ?? false;
+      if (!hasPermission) {
+        await UsageStats.grantUsagePermission();
+        hasPermission = await UsageStats.checkUsagePermission() ?? false;
+      }
+
+      if (hasPermission) {
+        List<UsageInfo> usageStats = await UsageStats.queryUsageStats(startDate, endDate);
+        for (var info in usageStats) {
+          final pkgName = info.packageName;
+          if (pkgName != null && packageNames.contains(pkgName)) {
+            final duration = Duration(milliseconds: int.parse(info.totalTimeInForeground ?? '0'));
+            if (screenTimeMap.containsKey(pkgName)) {
+              screenTimeMap[pkgName] = screenTimeMap[pkgName]! + duration;
+            } else {
+              screenTimeMap[pkgName] = duration;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching usage stats: $e");
+    }
+
+    return screenTimeMap;
   }
 }

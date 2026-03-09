@@ -1,0 +1,48 @@
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#121212" />
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" fill="#BB86FC" text-anchor="middle" font-weight="bold">ActivLock System Architecture</text>
+  
+  <!-- Presentation Layer -->
+  <rect x="50" y="80" width="700" height="100" rx="10" fill="#1F1B24" stroke="#BB86FC" stroke-width="2" />
+  <text x="400" y="110" font-family="Arial, sans-serif" font-size="18" fill="#E1E1E1" text-anchor="middle" font-weight="bold">I. PRESENTATION LAYER (FLUTTER)</text>
+  <text x="400" y="140" font-family="Arial, sans-serif" font-size="14" fill="#A0A0A0" text-anchor="middle">Dashboard UI | Workout Overlay | Settings Screen</text>
+  
+  <!-- Arrow -->
+  <path d="M400 180 L400 220" stroke="#BB86FC" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Logic Layer -->
+  <rect x="50" y="220" width="700" height="140" rx="10" fill="#1F1B24" stroke="#03DAC6" stroke-width="2" />
+  <text x="400" y="250" font-family="Arial, sans-serif" font-size="18" fill="#E1E1E1" text-anchor="middle" font-weight="bold">II. BUSINESS LOGIC LAYER (DART)</text>
+  <rect x="80" y="270" width="280" height="60" rx="5" fill="#2C2C2C" />
+  <text x="220" y="295" font-family="Arial, sans-serif" font-size="14" fill="#03DAC6" text-anchor="middle">Pose Detection Service</text>
+  <text x="220" y="315" font-family="Arial, sans-serif" font-size="12" fill="#A0A0A0" text-anchor="middle">FSM Logic | Google ML Kit</text>
+  
+  <rect x="440" y="270" width="280" height="60" rx="5" fill="#2C2C2C" />
+  <text x="580" y="295" font-family="Arial, sans-serif" font-size="14" fill="#03DAC6" text-anchor="middle">App Lock Service</text>
+  <text x="580" y="315" font-family="Arial, sans-serif" font-size="12" fill="#A0A0A0" text-anchor="middle">Method Channels | Limits</text>
+  
+  <!-- Arrow -->
+  <path d="M400 360 L400 400" stroke="#03DAC6" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Native Layer -->
+  <rect x="50" y="400" width="700" height="100" rx="10" fill="#1F1B24" stroke="#CF6679" stroke-width="2" />
+  <text x="400" y="430" font-family="Arial, sans-serif" font-size="18" fill="#E1E1E1" text-anchor="middle" font-weight="bold">III. NATIVE SYSTEM LAYER (KOTLIN)</text>
+  <text x="400" y="460" font-family="Arial, sans-serif" font-size="14" fill="#A0A0A0" text-anchor="middle">Accessibility Service | Shared Preferences | Window Interceptor</text>
+  
+  <!-- Hardware/External -->
+  <rect x="100" y="520" width="250" height="50" rx="5" fill="#333" stroke="#A0A0A0" />
+  <text x="225" y="550" font-family="Arial, sans-serif" font-size="14" fill="#E1E1E1" text-anchor="middle">Camera Sensor</text>
+  
+  <rect x="450" y="520" width="250" height="50" rx="5" fill="#333" stroke="#A0A0A0" />
+  <text x="575" y="550" font-family="Arial, sans-serif" font-size="14" fill="#E1E1E1" text-anchor="middle">Restricted Apps (TikTok, etc.)</text>
+
+  <!-- Marker for arrows -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#BB86FC" />
+    </marker>
+  </defs>
+</svg>

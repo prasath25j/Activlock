@@ -1,20 +1,27 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'dart:io';
 import '../models/exercise_type.dart';
 import '../services/pose_detection_service.dart';
-import '../services/usage_service.dart';
-import '../theme/wakanda_theme.dart';
+import '../theme/modern_theme.dart';
 import '../providers/app_providers.dart';
+import '../widgets/glass_container.dart';
 
 class WorkoutScreen extends ConsumerStatefulWidget {
   final String? lockedPackageName;
   final ExerciseType exerciseType;
+  final int targetReps;
+  final int unlockDuration;
 
-  const WorkoutScreen({super.key, this.lockedPackageName, required this.exerciseType});
+  const WorkoutScreen({
+    super.key,
+    this.lockedPackageName,
+    required this.exerciseType,
+    this.targetReps = 10,
+    this.unlockDuration = 15,
+  });
 
   @override
   ConsumerState<WorkoutScreen> createState() => _WorkoutScreenState();
@@ -22,8 +29,11 @@ class WorkoutScreen extends ConsumerStatefulWidget {
 
 class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   CameraController? _controller;
+  CameraLensDirection _lensDirection = CameraLensDirection.front;
   final PoseDetectionService _poseService = PoseDetectionService();
   bool _isProcessing = false;
+  bool _isDisposed = false;
+  bool _isToggling = false;
   int _reps = 0;
   String _status = "Prepare";
   String _feedback = "";
@@ -47,11 +57,11 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: WakandaTheme.blackMetal,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(color: WakandaTheme.herbPurple)),
+        backgroundColor: ModernTheme.slate800,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: Row(
           children: [
-            const Icon(Icons.info_outline, color: WakandaTheme.herbPurple),
+            const Icon(Icons.info_outline, color: ModernTheme.primaryBlue),
             const SizedBox(width: 10),
             Text("${widget.exerciseType.name.toUpperCase()} SETUP", style: const TextStyle(color: Colors.white, fontSize: 18)),
           ],
@@ -62,11 +72,13 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           children: [
             _instructionStep("1. Place phone on the floor, leaning against a wall."),
             const SizedBox(height: 10),
-            _instructionStep("2. Ensure the front camera faces you."),
+            _instructionStep("2. Ensure the camera faces you."),
             const SizedBox(height: 10),
             _instructionStep("3. Step back until your WHOLE body is visible (Head to Toe)."),
             const SizedBox(height: 10),
             _instructionStep("4. Wait for the skeleton lines to appear."),
+            const SizedBox(height: 10),
+            _instructionStep("5. Target: ${widget.targetReps} Reps"),
           ],
         ),
         actions: [
@@ -80,18 +92,20 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   Widget _instructionStep(String text) {
-    return Text(text, style: const TextStyle(color: WakandaTheme.vibranium, fontSize: 14));
+    return Text(text, style: const TextStyle(color: Colors.white70, fontSize: 14));
   }
 
   Future<void> _initializeCamera() async {
+    if (_isDisposed || !mounted) return;
+
     final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.front,
+    final camera = cameras.firstWhere(
+          (camera) => camera.lensDirection == _lensDirection,
       orElse: () => cameras.first,
     );
 
-    _controller = CameraController(
-      frontCamera,
+    final controller = CameraController(
+      camera,
       ResolutionPreset.medium,
       enableAudio: false,
       imageFormatGroup: Platform.isAndroid
@@ -99,39 +113,83 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           : ImageFormatGroup.bgra8888,
     );
 
-    await _controller!.initialize();
-    if (!mounted) return;
+    try {
+      await controller.initialize();
+      if (_isDisposed || !mounted) {
+        await controller.dispose();
+        return;
+      }
 
-    _rotation = InputImageRotation.rotation270deg;
-    _controller!.startImageStream(_processCameraImage);
-    setState(() {});
+      _controller = controller;
+      // Dynamically determine rotation based on sensor orientation
+      final int sensorOrientation = camera.sensorOrientation;
+      _rotation = _getRotation(sensorOrientation);
+      
+      await _controller!.startImageStream(_processCameraImage);
+      if (mounted && !_isDisposed) setState(() {});
+    } catch (e) {
+      debugPrint("Camera Error: $e");
+    }
+  }
+
+  InputImageRotation _getRotation(int orientation) {
+    switch (orientation) {
+      case 90:
+        return InputImageRotation.rotation90deg;
+      case 180:
+        return InputImageRotation.rotation180deg;
+      case 270:
+        return InputImageRotation.rotation270deg;
+      default:
+        return InputImageRotation.rotation0deg;
+    }
+  }
+
+  Future<void> _toggleCamera() async {
+    if (_isToggling || _isDisposed) return;
+    _isToggling = true;
+
+    try {
+      await _stopCamera();
+      
+      if (_isDisposed) return;
+
+      setState(() {
+        _lensDirection = _lensDirection == CameraLensDirection.front 
+            ? CameraLensDirection.back 
+            : CameraLensDirection.front;
+        _controller = null; 
+        _imageSize = null; // Reset image size for new camera
+      });
+      await _initializeCamera();
+    } finally {
+      _isToggling = false;
+    }
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
-    if (_isProcessing) return;
+    if (_isProcessing || _isDisposed || !mounted || _controller == null) return;
     _isProcessing = true;
 
-    if (_imageSize == null) {
-      _imageSize = Size(image.width.toDouble(), image.height.toDouble());
-    }
+    _imageSize ??= Size(image.width.toDouble(), image.height.toDouble());
 
     try {
       final inputImage = _inputImageFromCameraImage(image);
-      if (inputImage == null) {
+      if (inputImage == null || _isDisposed) {
         _isProcessing = false;
         return;
       }
 
       await _poseService.processImage(inputImage);
 
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _reps = _poseService.reps;
           _status = _poseService.state == ExerciseState.down ? "DOWN" : "UP";
           _feedback = _poseService.feedback;
         });
 
-        if (_reps >= 10) {
+        if (_reps >= widget.targetReps) {
           _handleSuccess();
         }
       }
@@ -143,8 +201,13 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   void _handleSuccess() async {
-    await _controller?.stopImageStream();
-    await ref.read(usageServiceProvider).incrementUnlockCount();
+    _isDisposed = true; // Stop processing immediately
+    await _stopCamera();
+    
+    await ref.read(usageServiceProvider).incrementUnlockCount(
+      type: widget.exerciseType,
+      reps: widget.targetReps,
+    );
 
     if (!mounted) return;
 
@@ -152,16 +215,16 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: WakandaTheme.blackMetal,
-        title: const Text("UNLOCKED!", style: TextStyle(color: WakandaTheme.herbLight, fontWeight: FontWeight.bold)),
-        content: const Text("Protocol complete. Access granted for 15 minutes.", style: TextStyle(color: Colors.white)),
+        backgroundColor: ModernTheme.slate800,
+        title: const Text("UNLOCKED!", style: TextStyle(color: ModernTheme.accentCyan, fontWeight: FontWeight.bold)),
+        content: Text("Protocol complete. Access granted for ${widget.unlockDuration} minutes.", style: const TextStyle(color: Colors.white)),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context, true);
             },
-            child: const Text("OPEN APP", style: TextStyle(color: WakandaTheme.vibranium)),
+            child: Text("OPEN APP", style: TextStyle(color: ModernTheme.primaryBlue)),
           )
         ],
       ),
@@ -169,16 +232,13 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   InputImage? _inputImageFromCameraImage(CameraImage image) {
-    final camera = _controller!.description;
-    final sensorOrientation = camera.sensorOrientation;
-    final InputImageRotation rotation = InputImageRotation.rotation270deg;
     final format = Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888;
 
     return InputImage.fromBytes(
       bytes: image.planes.first.bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
+        rotation: _rotation, // Use dynamic rotation
         format: format,
         bytesPerRow: image.planes.first.bytesPerRow,
       ),
@@ -187,24 +247,62 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _isDisposed = true;
+    _stopCamera();
     _poseService.close();
     super.dispose();
+  }
+
+  Future<void> _stopCamera() async {
+    if (_controller == null) return;
+    
+    final controller = _controller!;
+    _controller = null; // Null out immediately to stop callbacks
+
+    try {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+    } catch (e) {
+      debugPrint("Error stopping image stream: $e");
+    }
+
+    try {
+      await controller.dispose();
+    } catch (e) {
+      debugPrint("Error disposing camera: $e");
+    }
+  }
+
+  Future<void> _handleBack() async {
+    _isDisposed = true;
+    await _stopCamera();
+    if (mounted) {
+      Navigator.pop(context, false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_controller == null || !_controller!.value.isInitialized) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: CircularProgressIndicator(color: ModernTheme.primaryBlue)));
     }
 
     final size = MediaQuery.of(context).size;
-    // Check if body is fully visible
     final isVisible = _poseService.isBodyVisible;
+    final progress = (_reps / widget.targetReps).clamp(0.0, 1.0);
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        await _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
         children: [
           // 1. FULL SCREEN CAMERA
           SizedBox(
@@ -230,108 +328,236 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
                   _imageSize!,
                   _poseService.rawPose!,
                   _rotation,
+                  isFrontCamera: _lensDirection == CameraLensDirection.front,
                 ),
               ),
             ),
 
-          // 3. DARK GRADIENT & TEXT OVERLAY
+          // 3. MODERN OVERLAYS
           Positioned.fill(
-              child: Container(
-                  decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.6),
-                            Colors.transparent,
-                            WakandaTheme.blackMetal.withOpacity(0.9)
-                          ],
-                          stops: const [0.0, 0.6, 1.0]
-                      )
-                  )
-              )
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.4),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
+              ),
+            ),
           ),
 
-          // 4. MAIN STATS
+          // 4. TOP BAR CONTROLS
           Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Column(
+            top: 50,
+            left: 20,
+            right: 20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (!isVisible)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    color: Colors.red.withOpacity(0.8),
-                    child: const Text(
-                        "FULL BODY NOT VISIBLE!",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)
+                _GlassIconButton(
+                  icon: Icons.close_rounded,
+                  onPressed: _handleBack,
+                ),
+                GlassContainer(
+                  blur: 10,
+                  opacity: 0.1,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    widget.exerciseType.name.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
+                      fontSize: 12,
                     ),
                   ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  _feedback.toUpperCase(),
-                  style: TextStyle(
-                      fontSize: 24,
-                      color: isVisible ? WakandaTheme.herbLight : Colors.red,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2.0
-                  ),
-                  textAlign: TextAlign.center,
                 ),
-
-                Text(
-                  'REPS: $_reps / 10',
-                  style: const TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: WakandaTheme.vibranium,
-                    shadows: [Shadow(blurRadius: 10, color: WakandaTheme.herbPurple)],
-                    fontFamily: 'Roboto',
-                  ),
+                _GlassIconButton(
+                  icon: _lensDirection == CameraLensDirection.front
+                      ? Icons.camera_rear_rounded
+                      : Icons.camera_front_rounded,
+                  onPressed: _toggleCamera,
                 ),
               ],
             ),
           ),
 
-          // 5. CLOSE BUTTON
+          // 5. CENTER FEEDBACK (GLASS ALERT)
+          if (!isVisible)
+            Center(
+              child: GlassContainer(
+                color: Colors.red,
+                opacity: 0.2,
+                blur: 15,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.person_search_rounded, color: Colors.white, size: 40),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "BODY NOT VISIBLE",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                    ),
+                    Text(
+                      "Step back until your full body is in frame",
+                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // 6. BOTTOM STATS PANEL
           Positioned(
-            top: 40,
+            bottom: 40,
             left: 20,
-            child: CircleAvatar(
-              backgroundColor: Colors.black54,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.pop(context, false),
+            right: 20,
+            child: GlassContainer(
+              blur: 20,
+              opacity: 0.1,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text(
+                    _feedback.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: isVisible ? ModernTheme.accentCyan : Colors.white54,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4.0,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Progress Ring
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 80,
+                            height: 80,
+                            child: CircularProgressIndicator(
+                              value: progress,
+                              strokeWidth: 8,
+                              backgroundColor: Colors.white.withOpacity(0.1),
+                              color: ModernTheme.primaryBlue,
+                            ),
+                          ),
+                          Column(
+                            children: [
+                              Text(
+                                "$_reps",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 30),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "PROGRESS",
+                            style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                          ),
+                          Text(
+                            "${(_reps)} / ${widget.targetReps}",
+                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: ModernTheme.primaryBlue.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              "${(progress * 100).toInt()}% COMPLETE",
+                              style: const TextStyle(color: ModernTheme.primaryBlue, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ],
       ),
+    ));
+  }
+}
+
+class _GlassIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _GlassIconButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      blur: 10,
+      opacity: 0.1,
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.all(8),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 24),
+        onPressed: onPressed,
+        constraints: const BoxConstraints(),
+        padding: EdgeInsets.zero,
+      ),
     );
   }
 }
 
-// ---- CUSTOM PAINTER (NO HEAD, ONLY BODY) ----
+// ---- CUSTOM PAINTER (MODERN GLOW) ----
 class PosePainter extends CustomPainter {
   final Size imageSize;
   final Pose pose;
   final InputImageRotation rotation;
+  final bool isFrontCamera;
 
-  PosePainter(this.imageSize, this.pose, this.rotation);
+  PosePainter(this.imageSize, this.pose, this.rotation, {required this.isFrontCamera});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.0
-      ..color = WakandaTheme.herbPurple;
+      ..strokeWidth = 3.0
+      ..color = ModernTheme.primaryBlue.withOpacity(0.5)
+      ..strokeCap = StrokeCap.round;
+
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0
+      ..color = ModernTheme.primaryBlue.withOpacity(0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
 
     final jointPaint = Paint()
       ..style = PaintingStyle.fill
-      ..color = WakandaTheme.vibranium;
+      ..color = Colors.white;
+
+    final jointGlow = Paint()
+      ..style = PaintingStyle.fill
+      ..color = ModernTheme.accentCyan.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
 
     // Connections (EXCLUDING HEAD/FACE)
     final connections = [
@@ -353,13 +579,13 @@ class PosePainter extends CustomPainter {
       final start = pose.landmarks[connection[0]]!;
       final end = pose.landmarks[connection[1]]!;
 
-      // Draw line only if both points are likely visible
       if (start.likelihood > 0.5 && end.likelihood > 0.5) {
-        canvas.drawLine(
-            _translatePoint(start.x, start.y, size),
-            _translatePoint(end.x, end.y, size),
-            paint
-        );
+        final startP = _translatePoint(start.x, start.y, size);
+        final endP = _translatePoint(end.x, end.y, size);
+        
+        // Draw glow then line
+        canvas.drawLine(startP, endP, glowPaint);
+        canvas.drawLine(startP, endP, paint);
       }
     }
 
@@ -367,7 +593,8 @@ class PosePainter extends CustomPainter {
     for (final landmark in pose.landmarks.values) {
       if (landmark.type.index > 10 && landmark.likelihood > 0.5) {
         final point = _translatePoint(landmark.x, landmark.y, size);
-        canvas.drawCircle(point, 5, jointPaint);
+        canvas.drawCircle(point, 8, jointGlow);
+        canvas.drawCircle(point, 4, jointPaint);
       }
     }
   }
@@ -385,12 +612,19 @@ class PosePainter extends CustomPainter {
     final double screenX = x * scaleX;
     final double screenY = y * scaleY;
 
-    // Mirror for selfie view
-    return Offset(screenSize.width - screenX, screenY);
+    if (isFrontCamera) {
+      // Mirror only for front camera
+      return Offset(screenSize.width - screenX, screenY);
+    } else {
+      // Normal for back camera
+      return Offset(screenX, screenY);
+    }
   }
 
   @override
   bool shouldRepaint(covariant PosePainter oldDelegate) {
-    return oldDelegate.pose != pose || oldDelegate.imageSize != imageSize;
+    return oldDelegate.pose != pose || 
+           oldDelegate.imageSize != imageSize || 
+           oldDelegate.isFrontCamera != isFrontCamera;
   }
 }

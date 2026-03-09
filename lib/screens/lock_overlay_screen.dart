@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
-import '../services/usage_service.dart';
-import '../services/pose_detection_service.dart'; // Keep for other refs if needed, but ExerciseType is now in model
 import '../models/locked_app.dart';
 import '../models/exercise_type.dart';
-import '../theme/wakanda_theme.dart';
+import '../theme/modern_theme.dart';
+import '../theme/wakanda_background.dart';
+import '../widgets/glass_container.dart';
 
 class LockOverlayScreen extends ConsumerStatefulWidget {
   final String? lockedPackageName;
@@ -20,16 +20,15 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _showPin = false;
 
-  // Stats
-  Map<String, int> _stats = {'unlocks': 0, 'emergency': 0, 'maxUnlocks': 3, 'maxEmergency': 1};
+  final Map<String, int> _stats = {'unlocks': 0, 'emergency': 0, 'maxUnlocks': 3, 'maxEmergency': 1};
   bool _canUnlock = false;
   bool _canEmergency = false;
   
-  // App Config (defaults)
   String _pinCode = "";
   ExerciseType _exerciseType = ExerciseType.squat;
   int _targetReps = 10;
   int _maxExceptions = 3;
+  int _unlockDuration = 15;
 
   @override
   void initState() {
@@ -42,7 +41,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
     final lockedApps = ref.read(lockedAppsProvider);
     final currentApp = lockedApps.firstWhere(
             (app) => app.packageName == widget.lockedPackageName,
-        orElse: () => LockedApp(packageName: "", appName: "") // Fallback
+        orElse: () => LockedApp(packageName: "", appName: "")
     );
 
     setState(() {
@@ -50,23 +49,21 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
       _exerciseType = currentApp.exerciseType;
       _targetReps = currentApp.targetReps;
       _maxExceptions = currentApp.dailyExceptions;
+      _unlockDuration = currentApp.unlockDurationMinutes;
     });
   }
 
   Future<void> _loadLimits() async {
-    // Reload app config to get fresh 'usedExceptions' & 'usedUnlocks'
     final lockedApps = ref.read(lockedAppsProvider);
     final currentApp = lockedApps.firstWhere(
             (app) => app.packageName == widget.lockedPackageName,
         orElse: () => LockedApp(packageName: "", appName: "")
     );
     
-    // Check Per-App Daily Unlock Limit
     final int usedU = currentApp.usedUnlocks;
     final int limitU = currentApp.dailyUnlockLimit;
     final canU = usedU < limitU;
     
-    // Check Per-App Emergency Limit
     final int usedE = currentApp.usedExceptions;
     final int limitE = currentApp.dailyExceptions;
     final canE = usedE < limitE;
@@ -86,24 +83,21 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   void _unlockWithPin() async {
     final inputPin = _pinController.text;
     
-    // Verify against App Specific PIN if set, else Global Setting (fallback)
     bool isValid = false;
     if (_pinCode.isNotEmpty) {
       isValid = inputPin == _pinCode;
     } else {
-       // Fallback to legacy global verify
        isValid = await ref.read(settingsServiceProvider).verifyPin(inputPin);
     }
 
     if (isValid) {
       if (_canEmergency) {
-        // Increment Per-App Exception
         if (widget.lockedPackageName != null) {
            await ref.read(appLockServiceProvider).incrementException(widget.lockedPackageName!);
         }
         _performUnlock();
       } else {
-        _showSnack('Emergency limit reached for this app!');
+        _showSnack('Emergency limit reached!');
       }
     } else {
       _showSnack('Invalid Access Code!');
@@ -112,18 +106,31 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
 
   void _startActivity(ExerciseType type) async {
     if (!_canUnlock) {
-      _showSnack('Daily activity unlock limit reached!');
+      _showSnack('Daily unlock limit reached!');
       return;
     }
 
+    final routeName = type == ExerciseType.steps ? '/steps_challenge' : '/workout';
+    final args = type == ExerciseType.steps 
+      ? {
+          'package': widget.lockedPackageName,
+          'targetSteps': _targetReps,
+          'unlockDuration': _unlockDuration,
+        }
+      : {
+          'package': widget.lockedPackageName,
+          'type': type,
+          'targetReps': _targetReps,
+          'unlockDuration': _unlockDuration,
+        };
+
     final result = await Navigator.pushNamed(
         context,
-        '/workout',
-        arguments: {'package': widget.lockedPackageName, 'type': type}
+        routeName,
+        arguments: args
     );
 
     if (result == true) {
-      // Increment Per-App Unlock Count
       if (widget.lockedPackageName != null) {
           await ref.read(appLockServiceProvider).incrementUnlock(widget.lockedPackageName!);
       }
@@ -135,7 +142,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
     if (widget.lockedPackageName != null) {
       ref.read(appLockServiceProvider).unlockAppTemporary(
           widget.lockedPackageName!,
-          duration: const Duration(minutes: 15)
+          duration: Duration(minutes: _unlockDuration)
       );
     }
     SystemNavigator.pop();
@@ -144,7 +151,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: const TextStyle(color: Colors.white)),
-      backgroundColor: WakandaTheme.beadRed,
+      backgroundColor: ModernTheme.accentPink,
     ));
   }
 
@@ -157,106 +164,119 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
         SystemChannels.platform.invokeMethod('SystemNavigator.pop');
       },
       child: Scaffold(
-        backgroundColor: WakandaTheme.onyx.withOpacity(0.98),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [WakandaTheme.blackMetal, WakandaTheme.onyx],
-            ),
-          ),
+        body: WakandaBackground(
           child: Center(
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.lock_outline, size: 60, color: WakandaTheme.vibranium),
-                  const SizedBox(height: 20),
-                  Text(
-                    'RESTRICTED ACCESS',
-                    style: TextStyle(
-                      fontFamily: 'Roboto',
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 3.0,
-                      color: WakandaTheme.vibranium,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: GlassContainer(
+                blur: 20,
+                opacity: 0.1,
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: ModernTheme.primaryBlue.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.lock_reset_rounded, size: 50, color: ModernTheme.primaryBlue),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Daily Unlocks: ${_stats['unlocks']}/${_stats['maxUnlocks']}',
-                    style: TextStyle(color: _canUnlock ? WakandaTheme.herbLight : WakandaTheme.beadRed),
-                  ),
-                  const SizedBox(height: 40),
-
-                  if (_canUnlock) ...[
-                    Text('CHOOSE CHALLENGE ($_targetReps REPS)', style: const TextStyle(color: Colors.grey, letterSpacing: 1.5)),
-                    const SizedBox(height: 15),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_exerciseType == ExerciseType.squat)
-                          _ActivityButton(
-                              icon: Icons.accessibility_new,
-                              label: "SQUATS",
-                              onTap: () => _startActivity(ExerciseType.squat)
-                          ),
-                        if (_exerciseType == ExerciseType.pushup)
-                           _ActivityButton(
-                              icon: Icons.fitness_center,
-                              label: "PUSHUPS",
-                              onTap: () => _startActivity(ExerciseType.pushup)
-                          ),
-                      ],
-                    ),
-                  ] else ...[
+                    const SizedBox(height: 24),
                     const Text(
-                      'DAILY LIMIT REACHED',
-                      style: TextStyle(color: WakandaTheme.beadRed, fontSize: 18, fontWeight: FontWeight.bold),
+                      'SECURED AREA',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                        color: Colors.white,
+                      ),
                     ),
-                    const Text('Come back tomorrow.', style: TextStyle(color: Colors.grey)),
-                  ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Unlocks: ${_stats['unlocks']}/${_stats['maxUnlocks']}',
+                      style: TextStyle(color: _canUnlock ? ModernTheme.accentCyan : ModernTheme.accentPink, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 40),
 
-                  const SizedBox(height: 40),
-                  if (_showPin) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 60),
-                      child: TextField(
+                    if (_canUnlock) ...[
+                      Text('COMPLETE ${_targetReps} ${_exerciseType == ExerciseType.steps ? 'STEPS' : 'REPS'}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_exerciseType == ExerciseType.squat)
+                            _ActivityButton(
+                                icon: Icons.accessibility_new_rounded,
+                                label: "SQUATS",
+                                onTap: () => _startActivity(ExerciseType.squat)
+                            ),
+                          if (_exerciseType == ExerciseType.pushup)
+                             _ActivityButton(
+                                icon: Icons.fitness_center_rounded,
+                                label: "PUSHUPS",
+                                onTap: () => _startActivity(ExerciseType.pushup)
+                            ),
+                          if (_exerciseType == ExerciseType.steps)
+                             _ActivityButton(
+                                icon: Icons.directions_walk_rounded,
+                                label: "STEPS",
+                                onTap: () => _startActivity(ExerciseType.steps)
+                            ),
+                        ],
+                      ),
+                    ] else ...[
+                      const Icon(Icons.block_flipped, color: ModernTheme.accentPink, size: 40),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'LIMIT REACHED',
+                        style: TextStyle(color: ModernTheme.accentPink, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+
+                    const SizedBox(height: 40),
+                    if (_showPin) ...[
+                      TextField(
                         controller: _pinController,
                         obscureText: true,
                         keyboardType: TextInputType.number,
-                        style: const TextStyle(color: WakandaTheme.vibranium, letterSpacing: 5),
+                        style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
                         textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          hintText: 'PIN',
-                          hintStyle: TextStyle(color: Colors.grey),
-                          enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                        decoration: InputDecoration(
+                          hintText: '••••',
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.05),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: WakandaTheme.beadRed),
-                      onPressed: _unlockWithPin,
-                      child: const Text('UNLOCK'),
-                    ),
-                  ] else ...[
-                    TextButton(
-                      onPressed: () {
-                        if (_canEmergency) {
-                          setState(() { _showPin = true; });
-                        } else {
-                          _showSnack('No emergency unlocks left!');
-                        }
-                      },
-                      child: Text(
-                          'EMERGENCY OVERRIDE (${_stats['emergency']}/${_stats['maxEmergency']})',
-                          style: const TextStyle(color: WakandaTheme.vibraniumDark, letterSpacing: 1.2)
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: ModernTheme.accentPink),
+                          onPressed: _unlockWithPin,
+                          child: const Text('BYPASS'),
+                        ),
                       ),
-                    ),
-                  ]
-                ],
+                    ] else ...[
+                      TextButton(
+                        onPressed: () {
+                          if (_canEmergency) {
+                            setState(() { _showPin = true; });
+                          } else {
+                            _showSnack('No bypasses remaining!');
+                          }
+                        },
+                        child: Text(
+                            'EMERGENCY BYPASS (${_stats['emergency']}/${_stats['maxEmergency']})',
+                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)
+                        ),
+                      ),
+                    ]
+                  ],
+                ),
               ),
             ),
           ),
@@ -276,18 +296,19 @@ class _ActivityButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
         decoration: BoxDecoration(
-          color: WakandaTheme.blackMetal,
-          border: Border.all(color: WakandaTheme.herbPurple),
-          borderRadius: BorderRadius.circular(10),
+          color: ModernTheme.primaryBlue.withOpacity(0.1),
+          border: Border.all(color: ModernTheme.primaryBlue.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
-            Icon(icon, color: WakandaTheme.vibranium, size: 30),
-            const SizedBox(height: 5),
-            Text(label, style: const TextStyle(color: WakandaTheme.vibranium, fontWeight: FontWeight.bold)),
+            Icon(icon, color: ModernTheme.primaryBlue, size: 32),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
           ],
         ),
       ),

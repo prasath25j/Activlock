@@ -9,8 +9,9 @@ class LockedApp {
   final int targetReps;
   final int dailyExceptions;
   final int usedExceptions;
-  final int dailyUnlockLimit; // New
-  final int usedUnlocks;      // New
+  final int dailyUnlockLimit; 
+  final int usedUnlocks;      
+  final int unlockDurationMinutes; // New
   final DateTime? lastResetDate;
 
   LockedApp({
@@ -24,6 +25,7 @@ class LockedApp {
     this.usedExceptions = 0,
     this.dailyUnlockLimit = 10,
     this.usedUnlocks = 0,
+    this.unlockDurationMinutes = 15, // Default 15 mins
     this.lastResetDate,
   });
 
@@ -39,6 +41,7 @@ class LockedApp {
       'usedExceptions': usedExceptions,
       'dailyUnlockLimit': dailyUnlockLimit,
       'usedUnlocks': usedUnlocks,
+      'unlockDurationMinutes': unlockDurationMinutes,
       'lastResetDate': lastResetDate?.toIso8601String(),
     };
   }
@@ -57,6 +60,7 @@ class LockedApp {
       usedExceptions: json['usedExceptions'] ?? 0,
       dailyUnlockLimit: json['dailyUnlockLimit'] ?? 10,
       usedUnlocks: json['usedUnlocks'] ?? 0,
+      unlockDurationMinutes: json['unlockDurationMinutes'] ?? 15,
       lastResetDate: json['lastResetDate'] != null
           ? DateTime.parse(json['lastResetDate'])
           : null,

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../models/exercise_type.dart';
 
@@ -40,9 +39,7 @@ class PoseDetectionService {
   DateTime? _initTime;
 
   Future<void> processImage(InputImage inputImage) async {
-    if (_initTime == null) {
-      _initTime = DateTime.now();
-    }
+    _initTime ??= DateTime.now();
     
     // Ignore first 2 seconds to let user settle
     if (DateTime.now().difference(_initTime!).inSeconds < 2) {

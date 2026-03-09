@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'theme/wakanda_theme.dart';
-import 'theme/wakanda_theme.dart';
+import 'theme/modern_theme.dart';
 import 'models/exercise_type.dart';
-import 'services/pose_detection_service.dart';
 import 'screens/dashboard_screen.dart';
-import 'providers/app_providers.dart'; // Import providers
+import 'providers/app_providers.dart';
 import 'screens/app_selection_screen.dart';
 import 'screens/lock_overlay_screen.dart';
 import 'screens/workout_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/steps_challenge_screen.dart';
+import 'screens/onboarding_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const ProviderScope(child: ActivLockApp()));
 }
@@ -27,11 +27,20 @@ class ActivLockApp extends ConsumerStatefulWidget {
 class _ActivLockAppState extends ConsumerState<ActivLockApp> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static const MethodChannel _channel = MethodChannel('com.activlock/native');
+  bool? _isFirstLaunch;
 
   @override
   void initState() {
     super.initState();
+    _checkFirstLaunch();
     _configureMethodChannel();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final first = await ref.read(settingsServiceProvider).isFirstLaunch();
+    if (mounted) {
+      setState(() => _isFirstLaunch = first);
+    }
   }
 
   void _configureMethodChannel() {
@@ -46,7 +55,6 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
       }
     });
 
-    // Check if we missed a lock request during startup
     _checkPendingLockRequest();
   }
 
@@ -70,17 +78,27 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
 
+    if (_isFirstLaunch == null) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return MaterialApp(
       title: 'ActivLock',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: WakandaTheme.lightTheme,
-      darkTheme: WakandaTheme.themeData, // Original Wakanda Dark
+      theme: ModernTheme.lightTheme,
+      darkTheme: ModernTheme.themeData,
       navigatorKey: navigatorKey,
-      initialRoute: '/',
+      initialRoute: _isFirstLaunch! ? '/onboarding' : '/',
       onGenerateRoute: (settings) {
         if (settings.name == '/') {
           return MaterialPageRoute(builder: (_) => const DashboardScreen());
+        }
+        else if (settings.name == '/onboarding') {
+          return MaterialPageRoute(builder: (_) => const OnboardingScreen());
         }
         else if (settings.name == '/app_selection') {
           return MaterialPageRoute(builder: (_) => const AppSelectionScreen());
@@ -97,11 +115,19 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
           final args = settings.arguments;
           String? packageName;
           ExerciseType type = ExerciseType.squat;
+          int targetReps = 10;
+          int unlockDuration = 15;
 
           if (args is Map<String, dynamic>) {
             packageName = args['package'];
             if (args['type'] is ExerciseType) {
               type = args['type'];
+            }
+            if (args['targetReps'] is int) {
+              targetReps = args['targetReps'];
+            }
+            if (args['unlockDuration'] is int) {
+              unlockDuration = args['unlockDuration'];
             }
           } else if (args is String) {
             packageName = args;
@@ -109,7 +135,17 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
 
           return MaterialPageRoute(builder: (_) => WorkoutScreen(
               lockedPackageName: packageName,
-              exerciseType: type
+              exerciseType: type,
+              targetReps: targetReps,
+              unlockDuration: unlockDuration,
+          ));
+        }
+        else if (settings.name == '/steps_challenge') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(builder: (_) => StepsChallengeScreen(
+            lockedPackageName: args['package'],
+            targetSteps: args['targetSteps'],
+            unlockDuration: args['unlockDuration'],
           ));
         }
         return null;
