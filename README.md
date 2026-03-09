@@ -45,4 +45,4 @@ When you first install the app from an APK (not Play Store), Android restricts t
 - **Flutter Background Service** - To keep the lock running
 
 ---
-*Created by [SivaSekar-P](https://github.com/SivaSekar-P)*
+
