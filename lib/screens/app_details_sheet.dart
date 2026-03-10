@@ -14,12 +14,12 @@ class AppDetailsSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
+    final textColor = isDark ? Colors.white : ModernTheme.slate900;
     final subTextColor = isDark ? Colors.white60 : Colors.black54;
 
     return GlassContainer(
       blur: 25,
-      opacity: isDark ? 0.2 : 0.8,
+      opacity: isDark ? 0.2 : 0.8, // More solid in light mode for contrast
       color: isDark ? ModernTheme.slate800 : Colors.white,
       borderRadius: const BorderRadius.only(
         topLeft: Radius.circular(32),
@@ -34,7 +34,7 @@ class AppDetailsSheet extends ConsumerWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: textColor.withOpacity(0.1),
+              color: isDark ? Colors.white10 : Colors.black12,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -131,7 +131,7 @@ class AppDetailsSheet extends ConsumerWidget {
         children: [
           Icon(icon, size: 18, color: color.withOpacity(0.8)),
           const SizedBox(width: 12),
-          Text(label, style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+          Text(label, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 14, fontWeight: FontWeight.w600)),
           const Spacer(),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 14)),
         ],

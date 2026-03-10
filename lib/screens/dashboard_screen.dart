@@ -111,20 +111,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [ModernTheme.primaryBlue, ModernTheme.accentPink],
               ).createShader(bounds),
-              child: const Text(
+              child: Text(
                 'ACTIVLOCK',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2.0, fontSize: 18),
+                style: TextStyle(color: isDark ? Colors.white : ModernTheme.slate900, fontWeight: FontWeight.w900, letterSpacing: 2.0, fontSize: 18),
               ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icon(Icons.refresh_rounded, color: textColor),
             onPressed: _loadDashboardData,
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: Icon(Icons.settings_outlined, color: textColor),
             onPressed: () => Navigator.pushNamed(context, '/settings').then((_) => _loadDashboardData()),
           )
         ],
@@ -140,7 +140,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: _loadDashboardData,
-            color: ModernTheme.primaryBlue,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -237,10 +236,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
                 Expanded(
                   child: Text(
                     "INTRUDER LOGS (${_totalStats['intruderCount'] ?? 0})",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                    style: const TextStyle(color: ModernTheme.accentPink, fontWeight: FontWeight.bold, letterSpacing: 1.0),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, color: Colors.white.withOpacity(0.3), size: 14),
+                Icon(Icons.arrow_forward_ios, color: ModernTheme.accentPink.withOpacity(0.3), size: 14),
               ],
             ),
           ),
@@ -252,7 +251,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassContainer(
-      opacity: 0.05,
+      opacity: isDark ? 0.05 : 0.15, // Higher opacity for light mode visibility
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,8 +273,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassContainer(
-        opacity: isDark ? 0.05 : 0.6,
-        color: isDark ? Colors.white : Colors.white,
+        opacity: isDark ? 0.05 : 0.15,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Container(

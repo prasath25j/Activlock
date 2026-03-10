@@ -37,7 +37,7 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
       debugPrint("Error fetching apps: $e");
     }
 
-    const myPackage = 'com.activlock.activ_lock';
+    const myPackage = 'com.example.activ_lock';
 
     if (mounted) {
       setState(() {
@@ -58,13 +58,14 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true, 
       appBar: AppBar(
-        title: const Text('SELECT TARGET'),
+        title: Text('SELECT TARGET', style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: WakandaBackground(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: ModernTheme.primaryBlue))
             : ListView.builder(
-          padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 20),
+          padding: const EdgeInsets.fromLTRB(16, 110, 16, 20),
           itemCount: _installedApps.length,
           itemBuilder: (context, index) {
             final app = _installedApps[index];
@@ -72,23 +73,26 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
             final displayName = app.name;
 
             return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 12),
               child: GlassContainer(
-                opacity: isLocked ? (isDark ? 0.15 : 0.8) : (isDark ? 0.05 : 0.4),
-                color: isLocked ? ModernTheme.primaryBlue : Colors.white,
+                opacity: isDark 
+                    ? (isLocked ? 0.15 : 0.05) 
+                    : (isLocked ? 0.25 : 0.1), // Much higher opacity for visibility in Light mode
+                color: isLocked ? ModernTheme.primaryBlue : (isDark ? Colors.white : ModernTheme.slate900),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: app.icon != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(app.icon!, width: 40, height: 40)
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(app.icon!, width: 44, height: 44)
                         )
-                      : const Icon(Icons.android, color: ModernTheme.primaryBlue),
+                      : Icon(Icons.android_rounded, color: ModernTheme.primaryBlue, size: 32),
                   title: Text(
                       displayName,
                       style: TextStyle(
                         color: textColor,
-                        fontWeight: isLocked ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: isLocked ? FontWeight.w900 : FontWeight.w700,
+                        fontSize: 15
                       )
                   ),
                   subtitle: Text(app.packageName, style: TextStyle(fontSize: 10, color: subTextColor)),

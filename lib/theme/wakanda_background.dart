@@ -11,30 +11,19 @@ class WakandaBackground extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (!isDark) {
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: Container(color: const Color(0xFFFDFDFF)),
+      // LIGHT MODE: Soft subtle gradient, not too bright white
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFF1F5F9), // Slate 100
+              Color(0xFFE2E8F0), // Slate 200
+            ],
           ),
-          // Decorative Soft Mesh Gradients for Light Mode
-          Positioned(
-            top: -150,
-            right: -100,
-            child: _MeshCircle(
-              color: ModernTheme.primaryBlue.withOpacity(0.08),
-              size: 400,
-            ),
-          ),
-          Positioned(
-            bottom: -100,
-            left: -100,
-            child: _MeshCircle(
-              color: ModernTheme.accentPink.withOpacity(0.05),
-              size: 350,
-            ),
-          ),
-          child,
-        ],
+        ),
+        child: child,
       );
     }
 

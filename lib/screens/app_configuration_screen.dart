@@ -153,7 +153,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
               controller: _pinController,
               keyboardType: TextInputType.number,
               obscureText: true,
-              style: TextStyle(color: textColor, letterSpacing: 5),
+              style: TextStyle(color: textColor, letterSpacing: 5, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
                 labelText: "Enter 4-digit PIN",
                 labelStyle: TextStyle(color: textColor.withOpacity(0.6)),
@@ -168,7 +168,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
               controller: _confirmPinController,
               keyboardType: TextInputType.number,
               obscureText: true,
-              style: TextStyle(color: textColor, letterSpacing: 5),
+              style: TextStyle(color: textColor, letterSpacing: 5, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
                 labelText: "Confirm PIN",
                 labelStyle: TextStyle(color: textColor.withOpacity(0.6)),
@@ -249,7 +249,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text("Multi-Stage Verification", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
-              subtitle: Text("Require Pattern after exercise", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
+              subtitle: Text("Require Pattern after exercise", style: TextStyle(color: subTextColor, fontSize: 12)),
               value: _needsPattern,
               activeColor: ModernTheme.primaryBlue,
               onChanged: (val) => setState(() => _needsPattern = val),
@@ -263,10 +263,11 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
                   icon: Icon(Icons.gesture_rounded, size: 18, color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue),
                   label: Text(
                     _lockPattern != null ? "PATTERN CONFIGURED" : "SET SECURITY PATTERN",
-                    style: TextStyle(color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue),
+                    style: TextStyle(color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue, fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue),
+                    side: BorderSide(color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -300,12 +301,13 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : ModernTheme.slate900;
     final subTextColor = isDark ? Colors.white54 : Colors.black54;
-    final inputFillColor = isDark ? ModernTheme.slate800.withOpacity(0.5) : Colors.grey[100]!;
+    final inputFillColor = isDark ? ModernTheme.slate800.withOpacity(0.5) : Colors.black.withOpacity(0.05);
 
     return Scaffold(
       extendBodyBehindAppBar: true, 
       appBar: AppBar(
-        title: Text(widget.isEditing ? "ADJUST PROTOCOL" : "CONFIGURE SECURITY"),
+        title: Text(widget.isEditing ? "ADJUST PROTOCOL" : "CONFIGURE SECURITY", style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: WakandaBackground(
         child: SafeArea(
@@ -315,13 +317,14 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
                   child: Column(
                     children: [
                       GlassContainer(
+                        opacity: isDark ? 0.1 : 0.2,
                         padding: const EdgeInsets.all(20),
                         child: Column(
                           children: [
                             _buildStepContent(0, textColor, subTextColor, inputFillColor, isDark),
-                            const Divider(height: 40, color: Colors.white10),
+                            const Divider(height: 40, color: Colors.black12),
                             _buildStepContent(1, textColor, subTextColor, inputFillColor, isDark),
-                            const Divider(height: 40, color: Colors.white10),
+                            const Divider(height: 40, color: Colors.black12),
                             _buildStepContent(2, textColor, subTextColor, inputFillColor, isDark),
                           ],
                         ),
@@ -340,9 +343,9 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
                 )
               : Theme(
                   data: Theme.of(context).copyWith(
-                    colorScheme: ColorScheme.dark(
-                      primary: ModernTheme.primaryBlue,
-                      onSurface: textColor.withOpacity(0.8),
+                    colorScheme: ColorScheme.fromSeed(
+                      seedColor: ModernTheme.primaryBlue,
+                      brightness: isDark ? Brightness.dark : Brightness.light,
                     ),
                   ),
                   child: Stepper(
@@ -368,11 +371,11 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
                                 child: OutlinedButton(
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(vertical: 14),
-                                    side: BorderSide(color: ModernTheme.primaryBlue.withOpacity(0.5)),
+                                    side: const BorderSide(color: ModernTheme.primaryBlue, width: 2),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                   onPressed: details.onStepCancel,
-                                  child: const Text("BACK", style: TextStyle(color: ModernTheme.primaryBlue)),
+                                  child: const Text("BACK", style: TextStyle(color: ModernTheme.primaryBlue, fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],
@@ -400,7 +403,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
       state: _currentStep > index ? StepState.complete : StepState.indexed,
       content: GlassContainer(
         padding: const EdgeInsets.all(16),
-        opacity: 0.05,
+        opacity: isDark ? 0.05 : 0.15,
         child: _buildStepContent(index, textColor, subTextColor, inputFillColor, isDark),
       ),
     );

@@ -42,10 +42,14 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : ModernTheme.slate900;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("INTRUDER LOGS"),
+        title: Text("INTRUDER LOGS", style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
+        iconTheme: IconThemeData(color: textColor),
         actions: [
           if (_logs.isNotEmpty)
             IconButton(
@@ -63,9 +67,9 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_front_rounded, size: 60, color: Colors.white.withOpacity(0.2)),
+                        Icon(Icons.camera_front_rounded, size: 60, color: isDark ? Colors.white24 : Colors.black12),
                         const SizedBox(height: 16),
-                        Text("NO INTRUDERS DETECTED", style: TextStyle(color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.bold)),
+                        Text("NO INTRUDERS DETECTED", style: TextStyle(color: isDark ? Colors.white38 : Colors.black38, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   )
@@ -77,6 +81,7 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: GlassContainer(
+                          opacity: isDark ? 0.1 : 0.2,
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +95,7 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => Container(
                                     height: 200,
-                                    color: Colors.white10,
+                                    color: isDark ? Colors.white10 : Colors.black12,
                                     child: const Icon(Icons.broken_image, color: Colors.white24),
                                   ),
                                 ),
@@ -109,13 +114,13 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                                         ),
                                         Text(
                                           DateFormat('MMM dd, yyyy • hh:mm a').format(log.timestamp),
-                                          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                                          style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12),
                                         ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: Colors.white38),
+                                    icon: Icon(Icons.delete_outline, color: isDark ? Colors.white38 : Colors.black38),
                                     onPressed: () async {
                                       await ref.read(logServiceProvider).deleteLog(log.id);
                                       _loadLogs();
@@ -123,10 +128,10 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                                   )
                                 ],
                               ),
-                              const Divider(color: Colors.white10),
+                              const Divider(color: Colors.black12),
                               Text(
                                 "Reason: ${log.reason}",
-                                style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),

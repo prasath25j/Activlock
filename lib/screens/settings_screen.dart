@@ -17,12 +17,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
     final isDark = themeMode == ThemeMode.dark;
-    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
+    final textColor = isDark ? Colors.white : ModernTheme.slate900;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("SETTINGS"),
+        title: Text("SETTINGS", style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: WakandaBackground(
         child: SingleChildScrollView(
@@ -34,11 +35,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildSectionTitle("VISUAL INTERFACE", ModernTheme.primaryBlue),
               const SizedBox(height: 12),
               GlassContainer(
-                opacity: 0.05,
+                opacity: isDark ? 0.05 : 0.15,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: SwitchListTile(
                   title: Text("Dark Mode", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                  subtitle: Text("Toggle between light and dark themes", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
+                  subtitle: Text("Toggle between light and dark themes", style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12)),
                   value: isDark,
                   activeColor: ModernTheme.primaryBlue,
                   onChanged: (val) {
@@ -61,7 +62,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Expanded(
                       child: Text(
                         "Note: Security constraints are configured individually for each application.",
-                        style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 11),
+                        style: TextStyle(color: isDark ? Colors.white60 : Colors.black87, fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
