@@ -85,19 +85,9 @@ class AppLockService {
 
     int index = apps.indexWhere((a) => a.packageName == packageName);
     if (index != -1) {
-      final old = apps[index];
-      apps[index] = LockedApp(
-        packageName: old.packageName,
-        appName: old.appName,
-        isLocked: old.isLocked,
-        pinCode: old.pinCode,
-        exerciseType: old.exerciseType,
-        targetReps: old.targetReps,
-        dailyExceptions: old.dailyExceptions,
-        usedExceptions: old.usedExceptions + 1,
-        dailyUnlockLimit: old.dailyUnlockLimit,
-        usedUnlocks: old.usedUnlocks,
-        lastResetDate: DateTime.now(), // update date to today ensures no weird resets
+      apps[index] = apps[index].copyWith(
+        usedExceptions: apps[index].usedExceptions + 1,
+        lastResetDate: DateTime.now(),
       );
       await saveLockedApps(apps);
     }
@@ -111,18 +101,8 @@ class AppLockService {
 
     int index = apps.indexWhere((a) => a.packageName == packageName);
     if (index != -1) {
-      final old = apps[index];
-      apps[index] = LockedApp(
-        packageName: old.packageName,
-        appName: old.appName,
-        isLocked: old.isLocked,
-        pinCode: old.pinCode,
-        exerciseType: old.exerciseType,
-        targetReps: old.targetReps,
-        dailyExceptions: old.dailyExceptions,
-        usedExceptions: old.usedExceptions,
-        dailyUnlockLimit: old.dailyUnlockLimit,
-        usedUnlocks: old.usedUnlocks + 1, // Increment
+      apps[index] = apps[index].copyWith(
+        usedUnlocks: apps[index].usedUnlocks + 1,
         lastResetDate: DateTime.now(),
       );
       await saveLockedApps(apps);
@@ -136,25 +116,15 @@ class AppLockService {
 
     List<LockedApp> apps = appsJson.map((str) => LockedApp.fromJson(jsonDecode(str))).toList();
 
-    // Check for Daily Reset
     final now = DateTime.now();
     bool needsSave = false;
 
     List<LockedApp> updatedApps = [];
     for (var app in apps) {
       if (app.lastResetDate == null || !_isSameDay(app.lastResetDate!, now)) {
-        // Reset counters for a new day
-        updatedApps.add(LockedApp(
-          packageName: app.packageName,
-          appName: app.appName,
-          isLocked: app.isLocked,
-          pinCode: app.pinCode,
-          exerciseType: app.exerciseType,
-          targetReps: app.targetReps,
-          dailyExceptions: app.dailyExceptions,
-          usedExceptions: 0, // RESET
-          dailyUnlockLimit: app.dailyUnlockLimit,
-          usedUnlocks: 0,    // RESET
+        updatedApps.add(app.copyWith(
+          usedExceptions: 0,
+          usedUnlocks: 0,
           lastResetDate: now,
         ));
         needsSave = true;

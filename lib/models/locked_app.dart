@@ -70,4 +70,37 @@ class LockedApp {
           : null,
     );
   }
+
+  LockedApp copyWith({
+    String? packageName,
+    String? appName,
+    bool? isLocked,
+    String? pinCode,
+    ExerciseType? exerciseType,
+    int? targetReps,
+    int? dailyExceptions,
+    int? usedExceptions,
+    int? dailyUnlockLimit,
+    int? usedUnlocks,
+    int? unlockDurationMinutes,
+    bool? needsBiometric,
+    DateTime? lastResetDate,
+  }) {
+    return LockedApp(
+      packageName: packageName ?? this.packageName,
+      appName: appName ?? this.appName,
+      isLocked: isLocked ?? this.isLocked,
+      pinCode: pinCode ?? this.pinCode,
+      exerciseType: exerciseType ?? this.exerciseType,
+      targetReps: targetReps ?? this.targetReps,
+      dailyExceptions: dailyExceptions ?? this.dailyExceptions,
+      usedExceptions: usedExceptions ?? this.usedExceptions,
+      dailyUnlockLimit: dailyUnlockLimit ?? this.dailyUnlockLimit,
+      usedUnlocks: usedUnlocks ?? this.usedUnlocks,
+      unlockDurationMinutes: unlockDurationMinutes ?? this.unlockDurationMinutes,
+      needsBiometric: needsBiometric ?? this.needsBiometric,
+      lastResetDate: lastResetDate ?? this.lastResetDate,
+    );
+  }
+}
 }
