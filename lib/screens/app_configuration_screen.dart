@@ -6,6 +6,7 @@ import '../providers/app_providers.dart';
 import '../theme/modern_theme.dart';
 import '../theme/wakanda_background.dart';
 import '../widgets/glass_container.dart';
+import 'pattern_screen.dart';
 
 class AppConfigurationScreen extends ConsumerStatefulWidget {
   final String packageName;
@@ -37,7 +38,8 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
   int _maxExceptions = 3;
   int _dailyUnlockLimit = 10;
   int _unlockDuration = 15; // In minutes
-  bool _needsBiometric = false;
+  bool _needsPattern = false;
+  String? _lockPattern;
 
   @override
   void initState() {
@@ -57,7 +59,8 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
       _maxExceptions = app.dailyExceptions;
       _dailyUnlockLimit = app.dailyUnlockLimit;
       _unlockDuration = app.unlockDurationMinutes;
-      _needsBiometric = app.needsBiometric;
+      _needsPattern = app.needsPattern;
+      _lockPattern = app.lockPattern;
     } catch (e) {
       // Defaults
     }
@@ -72,13 +75,19 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
   }
 
   void _finishSetup() {
-    // Validation for PIN (if changed or new)
+    // Validation for PIN
     if (_pinController.text != _confirmPinController.text) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("PINs do not match!"), backgroundColor: Colors.red));
       return;
     }
     if (_pinController.text.isNotEmpty && _pinController.text.length < 4) {
        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("PIN must be at least 4 digits"), backgroundColor: Colors.red));
+      return;
+    }
+
+    // Validation for Pattern
+    if (_needsPattern && (_lockPattern == null || _lockPattern!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please set a pattern first!"), backgroundColor: Colors.red));
       return;
     }
 
@@ -105,12 +114,31 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
       dailyUnlockLimit: _dailyUnlockLimit,
       usedUnlocks: existingUsedUnlocks,
       unlockDurationMinutes: _unlockDuration,
-      needsBiometric: _needsBiometric,
+      needsPattern: _needsPattern,
+      lockPattern: _lockPattern,
       lastResetDate: existingReset,
     );
 
     ref.read(lockedAppsProvider.notifier).addApp(app);
     Navigator.of(context).pop();
+  }
+
+  void _openPatternSetup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PatternScreen(
+          mode: PatternMode.setup,
+          onComplete: (pattern) {
+            setState(() {
+              _lockPattern = pattern;
+            });
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pattern Saved!")));
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildStepContent(int stepIndex, Color textColor, Color subTextColor, Color inputFillColor, bool isDark) {
@@ -221,11 +249,28 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text("Multi-Stage Verification", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
-              subtitle: Text("Require Biometrics after exercise", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
-              value: _needsBiometric,
+              subtitle: Text("Require Pattern after exercise", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
+              value: _needsPattern,
               activeColor: ModernTheme.primaryBlue,
-              onChanged: (val) => setState(() => _needsBiometric = val),
+              onChanged: (val) => setState(() => _needsPattern = val),
             ),
+            if (_needsPattern) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _openPatternSetup,
+                  icon: Icon(Icons.gesture_rounded, size: 18, color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue),
+                  label: Text(
+                    _lockPattern != null ? "PATTERN CONFIGURED" : "SET SECURITY PATTERN",
+                    style: TextStyle(color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: _lockPattern != null ? ModernTheme.accentCyan : ModernTheme.primaryBlue),
+                  ),
+                ),
+              ),
+            ],
           ],
         );
       default:

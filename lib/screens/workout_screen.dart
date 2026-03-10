@@ -2,20 +2,21 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import 'package:local_auth/local_auth.dart';
 import 'dart:io';
 import '../models/exercise_type.dart';
 import '../services/pose_detection_service.dart';
 import '../theme/modern_theme.dart';
 import '../providers/app_providers.dart';
 import '../widgets/glass_container.dart';
+import 'pattern_screen.dart';
 
 class WorkoutScreen extends ConsumerStatefulWidget {
   final String? lockedPackageName;
   final ExerciseType exerciseType;
   final int targetReps;
   final int unlockDuration;
-  final bool needsBiometric;
+  final bool needsPattern;
+  final String? lockPattern;
 
   const WorkoutScreen({
     super.key,
@@ -23,7 +24,8 @@ class WorkoutScreen extends ConsumerStatefulWidget {
     required this.exerciseType,
     this.targetReps = 10,
     this.unlockDuration = 15,
-    this.needsBiometric = false,
+    this.needsPattern = false,
+    this.lockPattern,
   });
 
   @override
@@ -35,11 +37,10 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   CameraLensDirection _lensDirection = CameraLensDirection.front;
   final PoseDetectionService _poseService = PoseDetectionService();
   bool _isProcessing = false;
-  bool _isDisposed = false;
-  bool _isToggling = false;
   int _reps = 0;
   String _status = "Prepare";
   String _feedback = "";
+  bool _isDisposed = false;
 
   // For Painting
   Size? _imageSize;
@@ -56,6 +57,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   void _showInstructions() {
+    if (_isDisposed) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -99,15 +101,13 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    if (_isDisposed || !mounted) return;
-
     final cameras = await availableCameras();
     final camera = cameras.firstWhere(
           (camera) => camera.lensDirection == _lensDirection,
       orElse: () => cameras.first,
     );
 
-    final controller = CameraController(
+    _controller = CameraController(
       camera,
       ResolutionPreset.medium,
       enableAudio: false,
@@ -117,19 +117,14 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     );
 
     try {
-      await controller.initialize();
-      if (_isDisposed || !mounted) {
-        await controller.dispose();
-        return;
-      }
+      await _controller!.initialize();
+      if (!mounted || _isDisposed) return;
 
-      _controller = controller;
-      // Dynamically determine rotation based on sensor orientation
       final int sensorOrientation = camera.sensorOrientation;
       _rotation = _getRotation(sensorOrientation);
       
-      await _controller!.startImageStream(_processCameraImage);
-      if (mounted && !_isDisposed) setState(() {});
+      _controller!.startImageStream(_processCameraImage);
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint("Camera Error: $e");
     }
@@ -149,29 +144,25 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   Future<void> _toggleCamera() async {
-    if (_isToggling || _isDisposed) return;
-    _isToggling = true;
+    await _stopCamera();
+    setState(() {
+      _lensDirection = _lensDirection == CameraLensDirection.front 
+          ? CameraLensDirection.back 
+          : CameraLensDirection.front;
+      _controller = null; 
+      _imageSize = null; 
+    });
+    await _initializeCamera();
+  }
 
-    try {
-      await _stopCamera();
-      
-      if (_isDisposed) return;
-
-      setState(() {
-        _lensDirection = _lensDirection == CameraLensDirection.front 
-            ? CameraLensDirection.back 
-            : CameraLensDirection.front;
-        _controller = null; 
-        _imageSize = null; // Reset image size for new camera
-      });
-      await _initializeCamera();
-    } finally {
-      _isToggling = false;
+  Future<void> _stopCamera() async {
+    if (_controller != null && _controller!.value.isStreamingImages) {
+      await _controller!.stopImageStream();
     }
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
-    if (_isProcessing || _isDisposed || !mounted || _controller == null) return;
+    if (_isProcessing || _isDisposed) return;
     _isProcessing = true;
 
     _imageSize ??= Size(image.width.toDouble(), image.height.toDouble());
@@ -204,31 +195,24 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   void _handleSuccess() async {
-    if (widget.needsBiometric) {
-      final LocalAuthentication auth = LocalAuthentication();
-      try {
-        final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-        final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+    if (_isDisposed) return;
 
-        if (canAuthenticate) {
-          final bool didAuthenticate = await auth.authenticate(
-            localizedReason: 'Verification required to unlock app',
-            biometricOnly: true,
-          );
-          if (!didAuthenticate) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Biometric verification failed. Try again.")),
-              );
-            }
-            return;
-          }
-        } else {
-          debugPrint("Biometrics not supported or available.");
-          // Fallback: Proceed without biometrics if not supported on hardware
-        }
-      } catch (e) {
-        debugPrint("Biometric Error: $e");
+    if (widget.needsPattern) {
+      final bool? patternVerified = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PatternScreen(
+            mode: PatternMode.verify,
+            initialPattern: widget.lockPattern,
+            onComplete: (pattern) {
+              Navigator.pop(context, true);
+            },
+          ),
+        ),
+      );
+
+      if (patternVerified != true) {
+        return; // Stay here if they cancelled pattern
       }
     }
 
@@ -269,7 +253,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       bytes: image.planes.first.bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: _rotation, // Use dynamic rotation
+        rotation: _rotation, 
         format: format,
         bytesPerRow: image.planes.first.bytesPerRow,
       ),
@@ -279,38 +263,11 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   @override
   void dispose() {
     _isDisposed = true;
-    _stopCamera();
+    _stopCamera().then((_) {
+      _controller?.dispose();
+    });
     _poseService.close();
     super.dispose();
-  }
-
-  Future<void> _stopCamera() async {
-    if (_controller == null) return;
-    
-    final controller = _controller!;
-    _controller = null; // Null out immediately to stop callbacks
-
-    try {
-      if (controller.value.isStreamingImages) {
-        await controller.stopImageStream();
-      }
-    } catch (e) {
-      debugPrint("Error stopping image stream: $e");
-    }
-
-    try {
-      await controller.dispose();
-    } catch (e) {
-      debugPrint("Error disposing camera: $e");
-    }
-  }
-
-  Future<void> _handleBack() async {
-    _isDisposed = true;
-    await _stopCamera();
-    if (mounted) {
-      Navigator.pop(context, false);
-    }
   }
 
   @override
@@ -325,15 +282,9 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     final isVisible = _poseService.isBodyVisible;
     final progress = (_reps / widget.targetReps).clamp(0.0, 1.0);
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
-        await _handleBack();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
         children: [
           // 1. FULL SCREEN CAMERA
           SizedBox(
@@ -392,7 +343,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
               children: [
                 _GlassIconButton(
                   icon: Icons.close_rounded,
-                  onPressed: _handleBack,
+                  onPressed: () => Navigator.pop(context, false),
                 ),
                 GlassContainer(
                   blur: 10,
@@ -531,7 +482,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           ),
         ],
       ),
-    ));
+    );
   }
 }
 

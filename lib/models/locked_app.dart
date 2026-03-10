@@ -12,7 +12,8 @@ class LockedApp {
   final int dailyUnlockLimit; 
   final int usedUnlocks;      
   final int unlockDurationMinutes;
-  final bool needsBiometric; // New
+  final bool needsPattern; // New
+  final String? lockPattern; // New (Stored as "0,1,2")
   final DateTime? lastResetDate;
 
   LockedApp({
@@ -27,7 +28,8 @@ class LockedApp {
     this.dailyUnlockLimit = 10,
     this.usedUnlocks = 0,
     this.unlockDurationMinutes = 15,
-    this.needsBiometric = false, // Default false
+    this.needsPattern = false, 
+    this.lockPattern,
     this.lastResetDate,
   });
 
@@ -44,7 +46,8 @@ class LockedApp {
       'dailyUnlockLimit': dailyUnlockLimit,
       'usedUnlocks': usedUnlocks,
       'unlockDurationMinutes': unlockDurationMinutes,
-      'needsBiometric': needsBiometric,
+      'needsPattern': needsPattern,
+      'lockPattern': lockPattern,
       'lastResetDate': lastResetDate?.toIso8601String(),
     };
   }
@@ -64,7 +67,8 @@ class LockedApp {
       dailyUnlockLimit: json['dailyUnlockLimit'] ?? 10,
       usedUnlocks: json['usedUnlocks'] ?? 0,
       unlockDurationMinutes: json['unlockDurationMinutes'] ?? 15,
-      needsBiometric: json['needsBiometric'] ?? false,
+      needsPattern: json['needsPattern'] ?? false,
+      lockPattern: json['lockPattern'],
       lastResetDate: json['lastResetDate'] != null
           ? DateTime.parse(json['lastResetDate'])
           : null,
@@ -83,7 +87,8 @@ class LockedApp {
     int? dailyUnlockLimit,
     int? usedUnlocks,
     int? unlockDurationMinutes,
-    bool? needsBiometric,
+    bool? needsPattern,
+    String? lockPattern,
     DateTime? lastResetDate,
   }) {
     return LockedApp(
@@ -98,7 +103,8 @@ class LockedApp {
       dailyUnlockLimit: dailyUnlockLimit ?? this.dailyUnlockLimit,
       usedUnlocks: usedUnlocks ?? this.usedUnlocks,
       unlockDurationMinutes: unlockDurationMinutes ?? this.unlockDurationMinutes,
-      needsBiometric: needsBiometric ?? this.needsBiometric,
+      needsPattern: needsPattern ?? this.needsPattern,
+      lockPattern: lockPattern ?? this.lockPattern,
       lastResetDate: lastResetDate ?? this.lastResetDate,
     );
   }

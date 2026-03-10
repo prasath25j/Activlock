@@ -125,7 +125,8 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
           ExerciseType type = ExerciseType.squat;
           int targetReps = 10;
           int unlockDuration = 15;
-          bool needsBiometric = false;
+          bool needsPattern = false;
+          String? lockPattern;
 
           if (args is Map<String, dynamic>) {
             packageName = args['package'];
@@ -138,8 +139,11 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
             if (args['unlockDuration'] is int) {
               unlockDuration = args['unlockDuration'];
             }
-            if (args['needsBiometric'] is bool) {
-              needsBiometric = args['needsBiometric'];
+            if (args['needsPattern'] is bool) {
+              needsPattern = args['needsPattern'];
+            }
+            if (args['lockPattern'] is String) {
+              lockPattern = args['lockPattern'];
             }
           } else if (args is String) {
             packageName = args;
@@ -150,7 +154,8 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
               exerciseType: type,
               targetReps: targetReps,
               unlockDuration: unlockDuration,
-              needsBiometric: needsBiometric,
+              needsPattern: needsPattern,
+              lockPattern: lockPattern,
           ));
         }
         else if (settings.name == '/steps_challenge') {
@@ -159,7 +164,8 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
             lockedPackageName: args['package'],
             targetSteps: args['targetSteps'],
             unlockDuration: args['unlockDuration'],
-            needsBiometric: args['needsBiometric'] ?? false,
+            needsPattern: args['needsPattern'] ?? false,
+            lockPattern: args['lockPattern'],
           ));
         }
         return null;

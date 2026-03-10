@@ -3,25 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:local_auth/local_auth.dart';
 import '../models/exercise_type.dart';
 import '../providers/app_providers.dart';
 import '../theme/modern_theme.dart';
 import '../theme/wakanda_background.dart';
 import '../widgets/glass_container.dart';
+import 'pattern_screen.dart';
 
 class StepsChallengeScreen extends ConsumerStatefulWidget {
   final String? lockedPackageName;
   final int targetSteps;
   final int unlockDuration;
-  final bool needsBiometric;
+  final bool needsPattern;
+  final String? lockPattern;
 
   const StepsChallengeScreen({
     super.key,
     this.lockedPackageName,
     required this.targetSteps,
     required this.unlockDuration,
-    this.needsBiometric = false,
+    this.needsPattern = false,
+    this.lockPattern,
   });
 
   @override
@@ -86,29 +88,23 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
   void _handleSuccess() async {
     if (_isUnlocked) return;
 
-    // 1. Multi-Stage Verification
-    if (widget.needsBiometric) {
-      final LocalAuthentication auth = LocalAuthentication();
-      try {
-        final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-        final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+    // 1. Multi-Stage Verification (Pattern)
+    if (widget.needsPattern) {
+      final bool? patternVerified = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PatternScreen(
+            mode: PatternMode.verify,
+            initialPattern: widget.lockPattern,
+            onComplete: (pattern) {
+              Navigator.pop(context, true);
+            },
+          ),
+        ),
+      );
 
-        if (canAuthenticate) {
-          final bool didAuthenticate = await auth.authenticate(
-            localizedReason: 'Verification required to unlock app',
-            biometricOnly: true,
-          );
-          if (!didAuthenticate) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Biometric verification failed. Try again.")),
-              );
-            }
-            return;
-          }
-        }
-      } catch (e) {
-        debugPrint("Biometric Error: $e");
+      if (patternVerified != true) {
+        return;
       }
     }
 
