@@ -23,13 +23,13 @@ class ActivLockApp extends ConsumerStatefulWidget {
   @override
   ConsumerState<ActivLockApp> createState() => _ActivLockAppState();
 }
+
 class _ActivLockAppState extends ConsumerState<ActivLockApp> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static const MethodChannel _channel = MethodChannel('com.activlock/native');
   String? _lastLockedPackage; // To prevent double navigation
+  bool? _isFirstLaunch;
 
-  @override
-  void initState() {
   @override
   void initState() {
     super.initState();
@@ -43,24 +43,25 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
       setState(() => _isFirstLaunch = first);
     }
   }
-void _configureMethodChannel() {
-  _channel.setMethodCallHandler((call) async {
-    if (call.method == "navigateToLockScreen") {
-      final packageName = call.arguments as String?;
-      if (packageName != null && packageName != _lastLockedPackage) {
-        _lastLockedPackage = packageName;
-        navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/lock_screen',
-                (route) => false,
-            arguments: packageName
-        );
-      }
-    }
-  });
 
-  // Check if we missed a lock request during startup
-  _checkPendingLockRequest();
-}
+  void _configureMethodChannel() {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == "navigateToLockScreen") {
+        final packageName = call.arguments as String?;
+        if (packageName != null && packageName != _lastLockedPackage) {
+          _lastLockedPackage = packageName;
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+              '/lock_screen',
+                  (route) => false,
+              arguments: packageName
+          );
+        }
+      }
+    });
+
+    // Check if we missed a lock request during startup
+    _checkPendingLockRequest();
+  }
 
   Future<void> _checkPendingLockRequest() async {
     try {
@@ -158,6 +159,7 @@ void _configureMethodChannel() {
             lockedPackageName: args['package'],
             targetSteps: args['targetSteps'],
             unlockDuration: args['unlockDuration'],
+            needsBiometric: args['needsBiometric'] ?? false,
           ));
         }
         return null;
