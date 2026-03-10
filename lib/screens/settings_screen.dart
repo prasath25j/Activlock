@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
-import '../theme/arctic_theme.dart';
+import '../theme/modern_theme.dart';
 import '../theme/wakanda_background.dart';
+import '../widgets/glass_container.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +15,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
-    const textColor = ArcticTheme.deepNavy;
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -28,31 +31,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // --- SECTION 1: APPEARANCE ---
-              _buildSectionTitle("VISUAL INTERFACE", ArcticTheme.frostBlue),
+              _buildSectionTitle("VISUAL INTERFACE", ModernTheme.primaryBlue),
               const SizedBox(height: 12),
-              Container(
-                decoration: ArcticTheme.frostDecoration,
-                child: ListTile(
-                  title: const Text("Theme Mode", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                  subtitle: const Text("Arctic Frost (Light Only)", style: TextStyle(color: ArcticTheme.softSlate, fontSize: 12)),
-                  trailing: const Icon(Icons.ac_unit_rounded, color: ArcticTheme.frostBlue),
+              GlassContainer(
+                opacity: 0.05,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SwitchListTile(
+                  title: Text("Dark Mode", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                  subtitle: Text("Toggle between light and dark themes", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
+                  value: isDark,
+                  activeColor: ModernTheme.primaryBlue,
+                  onChanged: (val) {
+                    ref.read(themeProvider.notifier).toggleTheme(val);
+                  },
                 ),
               ),
               
               const SizedBox(height: 32),
               
               // Information Note
-              Container(
+              GlassContainer(
+                color: ModernTheme.primaryBlue,
+                opacity: 0.05,
                 padding: const EdgeInsets.all(16),
-                decoration: ArcticTheme.frostDecoration,
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, color: ArcticTheme.frostBlue),
+                    Icon(Icons.info_outline_rounded, color: ModernTheme.primaryBlue.withOpacity(0.7)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         "Note: Security constraints are configured individually for each application.",
-                        style: TextStyle(color: ArcticTheme.softSlate, fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 11),
                       ),
                     ),
                   ],

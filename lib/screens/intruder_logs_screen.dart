@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_providers.dart';
 import '../models/intruder_log.dart';
-import '../theme/arctic_theme.dart';
+import '../theme/modern_theme.dart';
 import '../theme/wakanda_background.dart';
+import '../widgets/glass_container.dart';
 
 class IntruderLogsScreen extends ConsumerStatefulWidget {
   const IntruderLogsScreen({super.key});
@@ -48,7 +49,7 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
         actions: [
           if (_logs.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded, color: ArcticTheme.alertRed),
+              icon: const Icon(Icons.delete_sweep_rounded, color: ModernTheme.accentPink),
               onPressed: _clearAll,
               tooltip: "Clear All",
             )
@@ -62,9 +63,9 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_front_rounded, size: 64, color: ArcticTheme.softSlate.withOpacity(0.2)),
+                        Icon(Icons.camera_front_rounded, size: 60, color: Colors.white.withOpacity(0.2)),
                         const SizedBox(height: 16),
-                        const Text("NO INTRUDERS DETECTED", style: TextStyle(color: ArcticTheme.softSlate, fontWeight: FontWeight.bold)),
+                        Text("NO INTRUDERS DETECTED", style: TextStyle(color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.bold)),
                       ],
                     ),
                   )
@@ -75,27 +76,26 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                       final log = _logs[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          decoration: ArcticTheme.frostDecoration,
-                          padding: const EdgeInsets.all(16),
+                        child: GlassContainer(
+                          padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(12),
                                 child: Image.file(
                                   File(log.imagePath),
                                   width: double.infinity,
-                                  height: 300,
+                                  height: 250,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => Container(
                                     height: 200,
-                                    color: ArcticTheme.iceWhite,
-                                    child: const Icon(Icons.broken_image, color: ArcticTheme.softSlate),
+                                    color: Colors.white10,
+                                    child: const Icon(Icons.broken_image, color: Colors.white24),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -105,17 +105,17 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                                       children: [
                                         Text(
                                           log.packageName,
-                                          style: const TextStyle(color: ArcticTheme.frostBlue, fontWeight: FontWeight.w900, fontSize: 14),
+                                          style: const TextStyle(color: ModernTheme.accentCyan, fontWeight: FontWeight.w900, fontSize: 14),
                                         ),
                                         Text(
                                           DateFormat('MMM dd, yyyy • hh:mm a').format(log.timestamp),
-                                          style: const TextStyle(color: ArcticTheme.softSlate, fontSize: 12, fontWeight: FontWeight.w600),
+                                          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
                                         ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, color: ArcticTheme.softSlate),
+                                    icon: const Icon(Icons.delete_outline, color: Colors.white38),
                                     onPressed: () async {
                                       await ref.read(logServiceProvider).deleteLog(log.id);
                                       _loadLogs();
@@ -123,13 +123,10 @@ class _IntruderLogsScreenState extends ConsumerState<IntruderLogsScreen> {
                                   )
                                 ],
                               ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Divider(color: Colors.black12, height: 1),
-                              ),
+                              const Divider(color: Colors.white10),
                               Text(
                                 "Reason: ${log.reason}",
-                                style: const TextStyle(color: ArcticTheme.deepNavy, fontSize: 13, fontWeight: FontWeight.w700),
+                                style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),

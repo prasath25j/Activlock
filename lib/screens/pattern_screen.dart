@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pattern_lock/pattern_lock.dart';
-import '../theme/arctic_theme.dart';
+import 'package:camera/camera.dart';
+import '../theme/modern_theme.dart';
+import '../providers/app_providers.dart';
 
 enum PatternMode { setup, verify }
 
-class PatternScreen extends StatefulWidget {
+class PatternScreen extends ConsumerStatefulWidget {
   final PatternMode mode;
   final String? initialPattern;
-  final String? packageName;
+  final String? packageName; // Required for logging
   final Function(String) onComplete;
 
   const PatternScreen({
@@ -19,13 +22,17 @@ class PatternScreen extends StatefulWidget {
   });
 
   @override
-  State<PatternScreen> createState() => _PatternScreenState();
+  ConsumerState<PatternScreen> createState() => _PatternScreenState();
 }
 
-class _PatternScreenState extends State<PatternScreen> {
+class _PatternScreenState extends ConsumerState<PatternScreen> {
   String? _firstPattern;
   String _message = "";
   bool _isError = false;
+  int _failedAttempts = 0;
+  
+  CameraController? _cameraController;
+  bool _isCapturing = false;
 
   @override
   void initState() {
@@ -33,6 +40,21 @@ class _PatternScreenState extends State<PatternScreen> {
     _message = widget.mode == PatternMode.setup 
         ? "Draw your security pattern" 
         : "Draw pattern to unlock";
+    
+    if (widget.mode == PatternMode.verify) {
+      _initCamera();
+    }
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final front = cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front);
+      _cameraController = CameraController(front, ResolutionPreset.low, enableAudio: false);
+      await _cameraController!.initialize();
+    } catch (e) {
+      debugPrint("Intruder Camera Error: $e");
+    }
   }
 
   void _onPatternComplete(List<int> pattern) {
@@ -65,21 +87,53 @@ class _PatternScreenState extends State<PatternScreen> {
         }
       }
     } else {
+      // Verify Mode
       if (widget.initialPattern == patternString) {
         widget.onComplete(patternString);
       } else {
+        _failedAttempts++;
         setState(() {
           _message = "Incorrect pattern. Try again.";
           _isError = true;
         });
+
+        // Capture after 2 failed attempts
+        if (_failedAttempts >= 2) {
+          _captureIntruder();
+        }
       }
     }
+  }
+
+  Future<void> _captureIntruder() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized || _isCapturing) return;
+    
+    _isCapturing = true;
+    try {
+      final XFile photo = await _cameraController!.takePicture();
+      await ref.read(logServiceProvider).addLog(
+        widget.packageName ?? "Unknown", 
+        photo.path, 
+        "Pattern Failed ($_failedAttempts attempts)"
+      );
+      debugPrint("Intruder Captured!");
+    } catch (e) {
+      debugPrint("Capture Error: $e");
+    } finally {
+      _isCapturing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ArcticTheme.iceWhite,
+      backgroundColor: ModernTheme.slate900,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -89,44 +143,39 @@ class _PatternScreenState extends State<PatternScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: ArcticTheme.pureWhite,
+                      color: ModernTheme.primaryBlue.withOpacity(0.1),
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: ArcticTheme.deepNavy.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
-                      ]
                     ),
                     child: Icon(
                       widget.mode == PatternMode.setup ? Icons.lock_reset_rounded : Icons.lock_outline_rounded,
                       size: 40,
-                      color: ArcticTheme.frostBlue,
+                      color: ModernTheme.primaryBlue,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   Text(
-                    widget.mode == PatternMode.setup ? "PATTERN SETUP" : "AUTHENTICATE",
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.0, color: ArcticTheme.deepNavy),
+                    widget.mode == PatternMode.setup ? "PATTERN SETUP" : "SECURITY CHECK",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     _message,
                     style: TextStyle(
-                      color: _isError ? ArcticTheme.alertRed : ArcticTheme.softSlate,
-                      fontWeight: FontWeight.w700,
+                      color: _isError ? ModernTheme.accentPink : Colors.white70,
+                      fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 48),
-                  Container(
-                    width: 320,
-                    height: 320,
-                    padding: const EdgeInsets.all(24),
-                    decoration: ArcticTheme.frostDecoration,
-                    child: RepaintBoundary(
+                  const SizedBox(height: 40),
+                  RepaintBoundary(
+                    child: SizedBox(
+                      height: 300,
+                      width: 300,
                       child: PatternLock(
-                        notSelectedColor: Colors.black12,
-                        selectedColor: ArcticTheme.frostBlue,
+                        notSelectedColor: Colors.white12,
+                        selectedColor: ModernTheme.primaryBlue,
                         pointRadius: 10,
                         showInput: true,
                         dimension: 3,
@@ -134,10 +183,10 @@ class _PatternScreenState extends State<PatternScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("CANCEL", style: TextStyle(color: ArcticTheme.softSlate, fontWeight: FontWeight.w800)),
+                    child: Text("CANCEL", style: TextStyle(color: Colors.white.withOpacity(0.3))),
                   ),
                 ],
               ),

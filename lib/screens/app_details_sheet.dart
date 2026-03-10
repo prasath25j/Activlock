@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/locked_app.dart';
 import '../providers/app_providers.dart';
-import '../theme/arctic_theme.dart';
+import '../theme/modern_theme.dart';
+import '../widgets/glass_container.dart';
 import 'app_configuration_screen.dart';
 
 class AppDetailsSheet extends ConsumerWidget {
@@ -12,13 +13,17 @@ class AppDetailsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: ArcticTheme.pureWhite,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(32),
-          topRight: Radius.circular(32),
-        ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
+    final subTextColor = isDark ? Colors.white60 : Colors.black54;
+
+    return GlassContainer(
+      blur: 25,
+      opacity: isDark ? 0.2 : 0.8,
+      color: isDark ? ModernTheme.slate800 : Colors.white,
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(32),
+        topRight: Radius.circular(32),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
@@ -29,7 +34,7 @@ class AppDetailsSheet extends ConsumerWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.black12,
+              color: textColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -40,10 +45,10 @@ class AppDetailsSheet extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: ArcticTheme.frostBlue.withOpacity(0.1),
+                  color: ModernTheme.primaryBlue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.shield_rounded, color: ArcticTheme.frostBlue, size: 32),
+                child: const Icon(Icons.shield_rounded, color: ModernTheme.primaryBlue, size: 32),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -52,11 +57,11 @@ class AppDetailsSheet extends ConsumerWidget {
                   children: [
                     Text(
                       app.appName,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ArcticTheme.deepNavy, letterSpacing: -0.5),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: textColor, letterSpacing: -0.5),
                     ),
                     Text(
                       app.packageName,
-                      style: const TextStyle(fontSize: 12, color: ArcticTheme.softSlate),
+                      style: TextStyle(fontSize: 12, color: subTextColor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -68,10 +73,10 @@ class AppDetailsSheet extends ConsumerWidget {
           
           const SizedBox(height: 32),
           
-          _buildInfoRow(Icons.fitness_center_rounded, "Protocol", app.exerciseType.name.toUpperCase(), ArcticTheme.frostBlue),
-          _buildInfoRow(Icons.repeat_rounded, "Target", "${app.targetReps} ${app.exerciseType.name == 'steps' ? 'Steps' : 'Reps'}", Colors.teal),
-          _buildInfoRow(Icons.bolt_rounded, "Bypasses Used", "${app.usedExceptions}/${app.dailyExceptions}", ArcticTheme.alertRed),
-          _buildInfoRow(Icons.lock_open_rounded, "Unlocks Today", "${app.usedUnlocks}/${app.dailyUnlockLimit}", Colors.orange),
+          _buildInfoRow(context, Icons.fitness_center_rounded, "Protocol", app.exerciseType.name.toUpperCase(), ModernTheme.primaryBlue),
+          _buildInfoRow(context, Icons.repeat_rounded, "Target", "${app.targetReps} Reps", ModernTheme.accentCyan),
+          _buildInfoRow(context, Icons.bolt_rounded, "Emergency Bypasses", "${app.usedExceptions}/${app.dailyExceptions}", ModernTheme.accentPink),
+          _buildInfoRow(context, Icons.lock_open_rounded, "Daily Unlocks", "${app.usedUnlocks}/${app.dailyUnlockLimit}", Colors.orangeAccent),
 
           const SizedBox(height: 32),
           
@@ -92,22 +97,22 @@ class AppDetailsSheet extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.tune_rounded),
+                  icon: const Icon(Icons.edit_note_rounded),
                   label: const Text("ADJUST"),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: ArcticTheme.alertRed.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
                   onPressed: () {
                     ref.read(lockedAppsProvider.notifier).removeApp(app.packageName);
                     Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.delete_sweep_rounded, color: ArcticTheme.alertRed),
+                  icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
                   tooltip: "Remove Protection",
                 ),
               ),
@@ -118,16 +123,17 @@ class AppDetailsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value, Color color) {
+  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Icon(icon, size: 18, color: color.withOpacity(0.8)),
           const SizedBox(width: 12),
-          Text(label, style: const TextStyle(color: ArcticTheme.softSlate, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(label, style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
           const Spacer(),
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 14)),
+          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 14)),
         ],
       ),
     );

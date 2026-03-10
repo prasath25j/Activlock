@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'theme/arctic_theme.dart';
+import 'theme/modern_theme.dart';
 import 'models/exercise_type.dart';
 import 'screens/dashboard_screen.dart';
 import 'providers/app_providers.dart';
@@ -60,6 +60,7 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
       }
     });
 
+    // Check if we missed a lock request during startup
     _checkPendingLockRequest();
   }
 
@@ -82,6 +83,8 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeProvider);
+
     if (_isFirstLaunch == null) {
       return const MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -92,7 +95,9 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
     return MaterialApp(
       title: 'ActivLock',
       debugShowCheckedModeBanner: false,
-      theme: ArcticTheme.themeData,
+      themeMode: themeMode,
+      theme: ModernTheme.lightTheme,
+      darkTheme: ModernTheme.themeData,
       navigatorKey: navigatorKey,
       initialRoute: _isFirstLaunch! ? '/onboarding' : '/',
       onGenerateRoute: (settings) {

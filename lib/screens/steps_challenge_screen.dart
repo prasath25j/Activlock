@@ -5,8 +5,9 @@ import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/exercise_type.dart';
 import '../providers/app_providers.dart';
-import '../theme/arctic_theme.dart';
+import '../theme/modern_theme.dart';
 import '../theme/wakanda_background.dart';
+import '../widgets/glass_container.dart';
 import 'pattern_screen.dart';
 
 class StepsChallengeScreen extends ConsumerStatefulWidget {
@@ -68,7 +69,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
 
     setState(() {
       _currentSteps = event.steps - _initialSteps;
-      _status = 'Protocol Active';
+      _status = 'Tracking Steps';
     });
 
     if (_currentSteps >= widget.targetSteps) {
@@ -80,14 +81,15 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
 
   void _onError(error) {
     setState(() {
-      _status = 'Hardware Unavailable';
+      _status = 'Step Count Not Available';
     });
   }
 
   void _handleSuccess() async {
     if (_isUnlocked) return;
-    _isUnlocked = true;
+    _isUnlocked = true; // Temporary lock to prevent multiple triggers
 
+    // 1. Multi-Stage Verification (Pattern)
     if (widget.needsPattern) {
       final bool? patternVerified = await Navigator.push(
         context,
@@ -104,7 +106,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
       );
 
       if (patternVerified != true) {
-        _isUnlocked = false;
+        _isUnlocked = false; // Allow re-triggering if cancelled
         return;
       }
     }
@@ -117,6 +119,8 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
     );
 
     if (!mounted) return;
+
+    // Trigger unlock and pop back to target app
     _performUnlock();
   }
 
@@ -127,6 +131,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
           duration: Duration(minutes: widget.unlockDuration)
       );
     }
+    // Return true to LockOverlayScreen
     Navigator.pop(context, true);
   }
 
@@ -145,28 +150,22 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              decoration: ArcticTheme.frostDecoration,
-              padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+            child: GlassContainer(
+              blur: 20,
+              opacity: 0.1,
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: ArcticTheme.frostBlue.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.directions_walk_rounded, size: 48, color: ArcticTheme.frostBlue),
-                  ),
+                  const Icon(Icons.directions_walk_rounded, size: 60, color: ModernTheme.primaryBlue),
                   const SizedBox(height: 24),
                   const Text(
                     "STEP CHALLENGE",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.0, color: ArcticTheme.deepNavy),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white),
                   ),
                   const SizedBox(height: 8),
-                  Text(_status, style: const TextStyle(color: ArcticTheme.softSlate, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 48),
+                  Text(_status, style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                  const SizedBox(height: 40),
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -176,19 +175,19 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
                         child: CircularProgressIndicator(
                           value: progress,
                           strokeWidth: 12,
-                          backgroundColor: ArcticTheme.iceWhite,
-                          color: ArcticTheme.frostBlue,
+                          backgroundColor: Colors.white.withOpacity(0.05),
+                          color: ModernTheme.accentCyan,
                         ),
                       ),
                       Column(
                         children: [
                           Text(
                             "$_currentSteps",
-                            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: ArcticTheme.deepNavy),
+                            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white),
                           ),
                           Text(
                             "OF ${widget.targetSteps}",
-                            style: const TextStyle(fontSize: 14, color: ArcticTheme.softSlate, fontWeight: FontWeight.w800),
+                            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -196,13 +195,13 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    "${(progress * 100).toInt()}% COMPLETED",
-                    style: const TextStyle(color: ArcticTheme.frostBlue, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                    "${(progress * 100).toInt()}% COMPLETE",
+                    style: const TextStyle(color: ModernTheme.accentCyan, fontWeight: FontWeight.bold, letterSpacing: 1.0),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("ABORT", style: TextStyle(color: ArcticTheme.softSlate, fontWeight: FontWeight.w800)),
+                    child: Text("CANCEL", style: TextStyle(color: Colors.white.withOpacity(0.3))),
                   ),
                 ],
               ),

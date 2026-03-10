@@ -5,8 +5,9 @@ import 'package:camera/camera.dart';
 import '../providers/app_providers.dart';
 import '../models/locked_app.dart';
 import '../models/exercise_type.dart';
-import '../theme/arctic_theme.dart';
+import '../theme/modern_theme.dart';
 import '../theme/wakanda_background.dart';
+import '../widgets/glass_container.dart';
 
 class LockOverlayScreen extends ConsumerStatefulWidget {
   final String? lockedPackageName;
@@ -158,15 +159,22 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
     }
 
     final routeName = type == ExerciseType.steps ? '/steps_challenge' : '/workout';
-    final args = {
-      'package': widget.lockedPackageName,
-      'type': type,
-      'targetReps': _targetReps,
-      'targetSteps': _targetReps,
-      'unlockDuration': _unlockDuration,
-      'needsPattern': _needsPattern,
-      'lockPattern': _lockPattern,
-    };
+    final args = type == ExerciseType.steps 
+      ? {
+          'package': widget.lockedPackageName,
+          'targetSteps': _targetReps,
+          'unlockDuration': _unlockDuration,
+          'needsPattern': _needsPattern,
+          'lockPattern': _lockPattern,
+        }
+      : {
+          'package': widget.lockedPackageName,
+          'type': type,
+          'targetReps': _targetReps,
+          'unlockDuration': _unlockDuration,
+          'needsPattern': _needsPattern,
+          'lockPattern': _lockPattern,
+        };
 
     final result = await Navigator.pushNamed(
         context,
@@ -194,10 +202,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      backgroundColor: ArcticTheme.alertRed,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: ModernTheme.accentPink,
     ));
   }
 
@@ -214,47 +220,41 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                decoration: ArcticTheme.frostDecoration,
-                padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+              child: GlassContainer(
+                blur: 20,
+                opacity: 0.1,
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: ArcticTheme.frostBlue.withOpacity(0.1),
+                        color: ModernTheme.primaryBlue.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.lock_person_rounded, size: 48, color: ArcticTheme.frostBlue),
+                      child: const Icon(Icons.lock_reset_rounded, size: 50, color: ModernTheme.primaryBlue),
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'SECURED PROTOCOL',
+                      'SECURED AREA',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.0,
-                        color: ArcticTheme.deepNavy,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Unlocks used: ${_stats['unlocks']}/${_stats['maxUnlocks']}',
-                      style: TextStyle(
-                        color: _canUnlock ? ArcticTheme.frostBlue : ArcticTheme.alertRed, 
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13
-                      ),
+                      'Unlocks: ${_stats['unlocks']}/${_stats['maxUnlocks']}',
+                      style: TextStyle(color: _canUnlock ? ModernTheme.accentCyan : ModernTheme.accentPink, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 40),
 
                     if (_canUnlock) ...[
-                      Text(
-                        'REQUIRED: ${_targetReps} ${_exerciseType == ExerciseType.steps ? 'STEPS' : 'REPS'}', 
-                        style: const TextStyle(color: ArcticTheme.softSlate, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.0)
-                      ),
-                      const SizedBox(height: 24),
+                      Text('COMPLETE ${_targetReps} ${_exerciseType == ExerciseType.steps ? 'STEPS' : 'REPS'}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -279,35 +279,35 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                         ],
                       ),
                     ] else ...[
-                      const Icon(Icons.block_flipped, color: ArcticTheme.alertRed, size: 48),
-                      const SizedBox(height: 16),
+                      const Icon(Icons.block_flipped, color: ModernTheme.accentPink, size: 40),
+                      const SizedBox(height: 10),
                       const Text(
-                        'DAILY LIMIT REACHED',
-                        style: TextStyle(color: ArcticTheme.alertRed, fontSize: 16, fontWeight: FontWeight.w900),
+                        'LIMIT REACHED',
+                        style: TextStyle(color: ModernTheme.accentPink, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ],
 
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 40),
                     if (_showPin) ...[
                       TextField(
                         controller: _pinController,
                         obscureText: true,
                         keyboardType: TextInputType.number,
-                        style: const TextStyle(color: ArcticTheme.deepNavy, letterSpacing: 8, fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
                         textAlign: TextAlign.center,
                         decoration: InputDecoration(
                           hintText: '••••',
-                          hintStyle: TextStyle(color: ArcticTheme.softSlate.withOpacity(0.3)),
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
                           filled: true,
-                          fillColor: ArcticTheme.iceWhite,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          fillColor: Colors.white.withOpacity(0.05),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         ),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        height: 55,
                         child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: ModernTheme.accentPink),
                           onPressed: _unlockWithPin,
                           child: const Text('BYPASS'),
                         ),
@@ -322,8 +322,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                           }
                         },
                         child: Text(
-                            'EMERGENCY OVERRIDE (${_stats['emergency']}/${_stats['maxEmergency']})',
-                            style: const TextStyle(color: ArcticTheme.softSlate, fontSize: 12, fontWeight: FontWeight.bold)
+                            'EMERGENCY BYPASS (${_stats['emergency']}/${_stats['maxEmergency']})',
+                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)
                         ),
                       ),
                     ]
@@ -348,19 +348,19 @@ class _ActivityButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
         decoration: BoxDecoration(
-          color: ArcticTheme.frostBlue.withOpacity(0.05),
-          border: Border.all(color: ArcticTheme.frostBlue.withOpacity(0.1), width: 1),
-          borderRadius: BorderRadius.circular(20),
+          color: ModernTheme.primaryBlue.withOpacity(0.1),
+          border: Border.all(color: ModernTheme.primaryBlue.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
-            Icon(icon, color: ArcticTheme.frostBlue, size: 36),
-            const SizedBox(height: 12),
-            Text(label, style: const TextStyle(color: ArcticTheme.deepNavy, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+            Icon(icon, color: ModernTheme.primaryBlue, size: 32),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
           ],
         ),
       ),
