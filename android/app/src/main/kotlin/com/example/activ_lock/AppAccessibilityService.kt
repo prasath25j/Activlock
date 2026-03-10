@@ -20,9 +20,6 @@ class AppAccessibilityService : AccessibilityService() {
         nativeLockedApps = if (rawList.isNotEmpty()) rawList.split(",") else emptyList()
     }
 
-    private var lastLockTime: Long = 0
-    private val LOCK_TIMEOUT = 1000L // 1 second cooldown
-
     private fun isAppTemporarilyUnlocked(packageName: String): Boolean {
         val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val expiry = prefs.getLong("flutter.unlock_expiry_$packageName", 0L)
@@ -34,9 +31,9 @@ class AppAccessibilityService : AccessibilityService() {
         val enabled = prefs.getBoolean("flutter.sleep_mode_enabled", true)
         if (!enabled) return false
 
-        val startHour = prefs.getInt("flutter.sleep_start_hour", 22) // Default 10 PM
+        val startHour = prefs.getInt("flutter.sleep_start_hour", 22)
         val startMin = prefs.getInt("flutter.sleep_start_min", 0)
-        val endHour = prefs.getInt("flutter.sleep_end_hour", 7) // Default 7 AM
+        val endHour = prefs.getInt("flutter.sleep_end_hour", 7)
         val endMin = prefs.getInt("flutter.sleep_end_min", 0)
 
         val calendar = java.util.Calendar.getInstance()
@@ -57,7 +54,6 @@ class AppAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
-        // Always reload the list before checking
         loadLockedApps()
 
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && 
@@ -66,38 +62,27 @@ class AppAccessibilityService : AccessibilityService() {
         }
 
         val packageName = event.packageName?.toString() ?: return
-
-        // Skip if it's our own app
         if (packageName == "com.example.activ_lock") return
-
-        // Deduplicate rapid firing events
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastLockTime < LOCK_TIMEOUT) return
 
         if (nativeLockedApps.contains(packageName)) {
             val isSleep = isSleepModeActive()
             val isTempUnlocked = isAppTemporarilyUnlocked(packageName)
 
-            // IF SLEEP MODE IS ON: Lock it NO MATTER WHAT.
-            // IF NOT SLEEP MODE: Only lock if it's not temporarily unlocked.
-            if (isSleep) {
-                android.util.Log.d("ActivLock", "Sleep Mode Active: Forcing lock for $packageName")
-            } else if (isTempUnlocked) {
-                // Not in sleep mode AND temporarily unlocked, so let it stay open
+            // STRICT ENFORCEMENT: 
+            // If Sleep Mode is ON, we ALWAYS lock. 
+            // Only if Sleep Mode is OFF do we allow temporary unlocks.
+            if (!isSleep && isTempUnlocked) {
                 return 
             }
 
-            // Launch our lock screen
-            lastLockTime = currentTime
-            android.util.Log.d("ActivLock", "Locking package: $packageName")
+            android.util.Log.d("ActivLock", "Locking package: $packageName (SleepMode: $isSleep)")
             
             val intent = Intent(this, MainActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP or 
-                    Intent.FLAG_ACTIVITY_NO_USER_ACTION or 
-                    Intent.FLAG_ACTIVITY_NO_HISTORY
+                    Intent.FLAG_ACTIVITY_NO_USER_ACTION
             
             intent.putExtra("locked_package", packageName)
             intent.putExtra("route", "/lock_screen")
