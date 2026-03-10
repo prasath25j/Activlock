@@ -23,10 +23,16 @@ class AppAccessibilityService : AccessibilityService() {
     private var lastLockTime: Long = 0
     private val LOCK_TIMEOUT = 1000L // 1 second cooldown
 
+    private fun isAppTemporarilyUnlocked(packageName: String): Boolean {
+        val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val expiry = prefs.getLong("flutter.unlock_expiry_$packageName", 0L)
+        return System.currentTimeMillis() < expiry
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
-        // Always reload the list before checking, to catch immediate unlocks from Flutter
+        // Always reload the list before checking
         loadLockedApps()
 
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && 
@@ -44,7 +50,12 @@ class AppAccessibilityService : AccessibilityService() {
         if (currentTime - lastLockTime < LOCK_TIMEOUT) return
 
         if (nativeLockedApps.contains(packageName)) {
-            // App is locked! Launch our lock screen
+            // CHECK EXPIRY: If app is still within its temporary unlock window, don't lock
+            if (isAppTemporarilyUnlocked(packageName)) {
+                return 
+            }
+
+            // App is locked or expiry reached! Launch our lock screen
             lastLockTime = currentTime
             android.util.Log.d("ActivLock", "Locking package: $packageName")
             

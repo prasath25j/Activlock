@@ -167,33 +167,19 @@ class AppLockService {
     await saveLockedApps(currentApps);
   }
 
-  /// Temporarily unlocks an app by removing it from the 'native_locked_apps' list
-  /// but keeping it in the 'UI list'. It automatically re-locks after [duration].
+  /// Temporarily unlocks an app by setting an expiry timestamp.
+  /// The native accessibility service will check this timestamp.
   Future<void> unlockAppTemporary(String packageName, {Duration duration = const Duration(minutes: 15)}) async {
     final prefs = await SharedPreferences.getInstance();
-
-    // 1. Get current Locked Apps
+    
+    // Calculate expiry time
+    final expiry = DateTime.now().add(duration).millisecondsSinceEpoch;
+    
+    // Store expiry in SharedPreferences (Accessibility service will read this)
+    await prefs.setInt('unlock_expiry_$packageName', expiry);
+    
+    // Ensure the app is in the native lock list (if it was removed by old logic)
     final currentApps = await getLockedApps();
-
-    // 2. Filter out the app we want to unlock temporarily
-    final lockedPackageNames = currentApps
-        .where((app) => app.isLocked && app.packageName != packageName)
-        .map((app) => app.packageName)
-        .toList();
-
-    // 3. Update Native String so accessibility service ignores this app
-    await prefs.setString('native_locked_apps', lockedPackageNames.join(','));
-
-    // 4. Schedule re-lock
-    Future.delayed(duration, () async {
-      // Fetch fresh list (in case user added more apps while waiting)
-      final freshApps = await getLockedApps();
-
-      // If the app is still in our list, re-add it to the native lock string
-      if (freshApps.any((a) => a.packageName == packageName && a.isLocked)) {
-        final freshNames = freshApps.where((a) => a.isLocked).map((a) => a.packageName).toList();
-        await prefs.setString('native_locked_apps', freshNames.join(','));
-      }
-    });
+    await saveLockedApps(currentApps);
   }
 }
