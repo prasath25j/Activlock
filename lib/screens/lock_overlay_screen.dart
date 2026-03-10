@@ -331,7 +331,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
