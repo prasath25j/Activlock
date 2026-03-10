@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:local_auth/local_auth.dart';
 import 'dart:io';
 import '../models/exercise_type.dart';
 import '../services/pose_detection_service.dart';
@@ -14,6 +15,7 @@ class WorkoutScreen extends ConsumerStatefulWidget {
   final ExerciseType exerciseType;
   final int targetReps;
   final int unlockDuration;
+  final bool needsBiometric;
 
   const WorkoutScreen({
     super.key,
@@ -21,6 +23,7 @@ class WorkoutScreen extends ConsumerStatefulWidget {
     required this.exerciseType,
     this.targetReps = 10,
     this.unlockDuration = 15,
+    this.needsBiometric = false,
   });
 
   @override
@@ -201,6 +204,27 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   }
 
   void _handleSuccess() async {
+    if (widget.needsBiometric) {
+      final LocalAuthentication auth = LocalAuthentication();
+      try {
+        final bool didAuthenticate = await auth.authenticate(
+          localizedReason: 'Verification required to unlock app',
+          biometricOnly: true,
+          stickyAuth: true,
+        );
+        if (!didAuthenticate) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Biometric verification failed. Try again.")),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint("Biometric Error: $e");
+      }
+    }
+
     _isDisposed = true; // Stop processing immediately
     await _stopCamera();
     

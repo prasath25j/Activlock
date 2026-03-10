@@ -37,6 +37,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
   int _maxExceptions = 3;
   int _dailyUnlockLimit = 10;
   int _unlockDuration = 15; // In minutes
+  bool _needsBiometric = false;
 
   @override
   void initState() {
@@ -56,6 +57,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
       _maxExceptions = app.dailyExceptions;
       _dailyUnlockLimit = app.dailyUnlockLimit;
       _unlockDuration = app.unlockDurationMinutes;
+      _needsBiometric = app.needsBiometric;
     } catch (e) {
       // Defaults
     }
@@ -103,6 +105,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
       dailyUnlockLimit: _dailyUnlockLimit,
       usedUnlocks: existingUsedUnlocks,
       unlockDurationMinutes: _unlockDuration,
+      needsBiometric: _needsBiometric,
       lastResetDate: existingReset,
     );
 
@@ -213,6 +216,15 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
               activeColor: ModernTheme.accentPink,
               inactiveColor: ModernTheme.accentPink.withOpacity(0.1),
               onChanged: (val) => setState(() => _maxExceptions = val.round()),
+            ),
+            const SizedBox(height: 20),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text("Multi-Stage Verification", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: Text("Require Biometrics after exercise", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
+              value: _needsBiometric,
+              activeColor: ModernTheme.primaryBlue,
+              onChanged: (val) => setState(() => _needsBiometric = val),
             ),
           ],
         );

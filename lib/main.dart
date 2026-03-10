@@ -117,6 +117,7 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
           ExerciseType type = ExerciseType.squat;
           int targetReps = 10;
           int unlockDuration = 15;
+          bool needsBiometric = false;
 
           if (args is Map<String, dynamic>) {
             packageName = args['package'];
@@ -129,6 +130,9 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
             if (args['unlockDuration'] is int) {
               unlockDuration = args['unlockDuration'];
             }
+            if (args['needsBiometric'] is bool) {
+              needsBiometric = args['needsBiometric'];
+            }
           } else if (args is String) {
             packageName = args;
           }
@@ -138,6 +142,7 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
               exerciseType: type,
               targetReps: targetReps,
               unlockDuration: unlockDuration,
+              needsBiometric: needsBiometric,
           ));
         }
         else if (settings.name == '/steps_challenge') {

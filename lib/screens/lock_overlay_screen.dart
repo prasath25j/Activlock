@@ -29,6 +29,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   int _targetReps = 10;
   int _maxExceptions = 3;
   int _unlockDuration = 15;
+  bool _needsBiometric = false;
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
       _targetReps = currentApp.targetReps;
       _maxExceptions = currentApp.dailyExceptions;
       _unlockDuration = currentApp.unlockDurationMinutes;
+      _needsBiometric = currentApp.needsBiometric;
     });
   }
 
@@ -116,12 +118,14 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
           'package': widget.lockedPackageName,
           'targetSteps': _targetReps,
           'unlockDuration': _unlockDuration,
+          'needsBiometric': _needsBiometric,
         }
       : {
           'package': widget.lockedPackageName,
           'type': type,
           'targetReps': _targetReps,
           'unlockDuration': _unlockDuration,
+          'needsBiometric': _needsBiometric,
         };
 
     final result = await Navigator.pushNamed(
