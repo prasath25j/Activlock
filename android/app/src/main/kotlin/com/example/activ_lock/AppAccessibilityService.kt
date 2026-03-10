@@ -29,6 +29,31 @@ class AppAccessibilityService : AccessibilityService() {
         return System.currentTimeMillis() < expiry
     }
 
+    private fun isSleepModeActive(): Boolean {
+        val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean("flutter.sleep_mode_enabled", true)
+        if (!enabled) return false
+
+        val startHour = prefs.getInt("flutter.sleep_start_hour", 22) // Default 10 PM
+        val startMin = prefs.getInt("flutter.sleep_start_min", 0)
+        val endHour = prefs.getInt("flutter.sleep_end_hour", 7) // Default 7 AM
+        val endMin = prefs.getInt("flutter.sleep_end_min", 0)
+
+        val calendar = java.util.Calendar.getInstance()
+        val nowHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val nowMin = calendar.get(java.util.Calendar.MINUTE)
+
+        val nowTotal = nowHour * 60 + nowMin
+        val startTotal = startHour * 60 + startMin
+        val endTotal = endHour * 60 + endMin
+
+        return if (startTotal <= endTotal) {
+            nowTotal in startTotal until endTotal
+        } else {
+            nowTotal >= startTotal || nowTotal < endTotal
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
@@ -50,8 +75,11 @@ class AppAccessibilityService : AccessibilityService() {
         if (currentTime - lastLockTime < LOCK_TIMEOUT) return
 
         if (nativeLockedApps.contains(packageName)) {
-            // CHECK EXPIRY: If app is still within its temporary unlock window, don't lock
-            if (isAppTemporarilyUnlocked(packageName)) {
+            // CHECK SLEEP MODE: If sleep mode is active, lock REGARDLESS of temporary unlock
+            if (isSleepModeActive()) {
+                // Lock it
+            } else if (isAppTemporarilyUnlocked(packageName)) {
+                // Not in sleep mode AND temporarily unlocked, so let it stay open
                 return 
             }
 
@@ -60,7 +88,6 @@ class AppAccessibilityService : AccessibilityService() {
             android.util.Log.d("ActivLock", "Locking package: $packageName")
             
             val intent = Intent(this, MainActivity::class.java)
-            // Critical Flags for Background Launch
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or

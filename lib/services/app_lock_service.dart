@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/locked_app.dart';
+import 'settings_service.dart';
 
 class AppLockService {
   // Channel to talk to MainActivity.kt
@@ -122,6 +124,7 @@ class AppLockService {
     List<LockedApp> updatedApps = [];
     for (var app in apps) {
       if (app.lastResetDate == null || !_isSameDay(app.lastResetDate!, now)) {
+        // Reset counters for a new day
         updatedApps.add(app.copyWith(
           usedExceptions: 0,
           usedUnlocks: 0,
@@ -181,5 +184,27 @@ class AppLockService {
     // Ensure the app is in the native lock list (if it was removed by old logic)
     final currentApps = await getLockedApps();
     await saveLockedApps(currentApps);
+  }
+
+  /// Checks if Sleep Mode is currently active
+  Future<bool> isSleepModeActive() async {
+    final settings = SettingsService();
+    if (!await settings.isSleepModeEnabled()) return false;
+
+    final start = await settings.getSleepStartTime();
+    final end = await settings.getSleepEndTime();
+    final now = TimeOfDay.fromDateTime(DateTime.now());
+
+    final nowTotal = now.hour * 60 + now.minute;
+    final startTotal = start.hour * 60 + start.minute;
+    final endTotal = end.hour * 60 + end.minute;
+
+    if (startTotal <= endTotal) {
+      // Same day (e.g., 10 PM to 11 PM)
+      return nowTotal >= startTotal && nowTotal < endTotal;
+    } else {
+      // Spans midnight (e.g., 10 PM to 7 AM)
+      return nowTotal >= startTotal || nowTotal < endTotal;
+    }
   }
 }
