@@ -20,15 +20,12 @@ class AppAccessibilityService : AccessibilityService() {
         val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val rawList = prefs.getString("flutter.native_locked_apps", "") ?: ""
         nativeLockedApps = if (rawList.isNotEmpty()) rawList.split(",") else emptyList()
-        Log.d("ActivLock", "Loaded Locked Apps: $nativeLockedApps")
     }
 
     private fun isAppTemporarilyUnlocked(packageName: String): Boolean {
         val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val expiry = prefs.getLong("flutter.unlock_expiry_$packageName", 0L)
-        val isUnlocked = System.currentTimeMillis() < expiry
-        if (isUnlocked) Log.d("ActivLock", "$packageName is temporarily unlocked")
-        return isUnlocked
+        return System.currentTimeMillis() < expiry
     }
 
     private fun isSleepModeActive(): Boolean {
@@ -49,41 +46,37 @@ class AppAccessibilityService : AccessibilityService() {
         val startTotal = startHour * 60 + startMin
         val endTotal = endHour * 60 + endMin
 
-        val isActive = if (startTotal <= endTotal) {
+        return if (startTotal <= endTotal) {
             nowTotal in startTotal until endTotal
         } else {
             nowTotal >= startTotal || nowTotal < endTotal
         }
-        
-        if (isActive) Log.d("ActivLock", "Sleep Mode is currently ACTIVE")
-        return isActive
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
-        // Window state change is the primary event for app launches
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        // Listen to BOTH state changes and content changes for maximum reliability
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && 
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             return
         }
 
         val packageName = event.packageName?.toString() ?: return
         
-        // Dynamic self-skip
+        // Never lock ourselves
         if (packageName == getPackageName()) return
 
-        // Refresh list on every window change to be absolutely sure
         loadLockedApps()
 
         if (nativeLockedApps.contains(packageName)) {
             val isSleep = isSleepModeActive()
             val isTempUnlocked = isAppTemporarilyUnlocked(packageName)
 
-            // LOGIC: 
-            // 1. If Sleep Mode is ON -> ALWAYS LOCK
-            // 2. If Sleep Mode is OFF -> Only lock if NOT temporarily unlocked
+            // If Sleep mode is active, WE ALWAYS LOCK.
+            // If Sleep mode is NOT active, we only lock if NOT temporarily authorized.
             if (isSleep || !isTempUnlocked) {
-                Log.d("ActivLock", "ENFORCING LOCK: $packageName (Sleep: $isSleep, TempUnlocked: $isTempUnlocked)")
+                Log.d("ActivLock", "EVENT TRIGGERED LOCK: $packageName (Sleep: $isSleep)")
                 
                 val intent = Intent(this, MainActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -95,13 +88,9 @@ class AppAccessibilityService : AccessibilityService() {
                 intent.putExtra("route", "/lock_screen")
                 
                 startActivity(intent)
-            } else {
-                Log.d("ActivLock", "ALLOWING ACCESS: $packageName is temporarily unlocked.")
             }
         }
     }
 
-    override fun onInterrupt() {
-        Log.d("ActivLock", "Accessibility Service Interrupted")
-    }
+    override fun onInterrupt() {}
 }
