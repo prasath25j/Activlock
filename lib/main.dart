@@ -79,26 +79,22 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
     } on PlatformException catch (e) {
       debugPrint("Failed to check pending lock: '${e.message}'.");
     }
-  }
+  import 'theme/arctic_theme.dart';
+  ...
+    @override
+    Widget build(BuildContext context) {
+      if (_isFirstLaunch == null) {
+        return const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(body: Center(child: CircularProgressIndicator())),
+        );
+      }
 
-  @override
-  Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeProvider);
-
-    if (_isFirstLaunch == null) {
-      return const MaterialApp(
+      return MaterialApp(
+        title: 'ActivLock',
         debugShowCheckedModeBanner: false,
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
-      );
-    }
-
-    return MaterialApp(
-      title: 'ActivLock',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: ModernTheme.lightTheme,
-      darkTheme: ModernTheme.themeData,
-      navigatorKey: navigatorKey,
+        theme: ArcticTheme.themeData,
+        navigatorKey: navigatorKey,
       initialRoute: _isFirstLaunch! ? '/onboarding' : '/',
       onGenerateRoute: (settings) {
         if (settings.name == '/') {

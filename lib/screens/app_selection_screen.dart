@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import '../providers/app_providers.dart';
-import '../theme/modern_theme.dart';
+import '../theme/arctic_theme.dart';
 import '../theme/wakanda_background.dart';
-import '../widgets/glass_container.dart';
 import 'app_configuration_screen.dart';
 
 class AppSelectionScreen extends ConsumerStatefulWidget {
@@ -37,7 +36,7 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
       debugPrint("Error fetching apps: $e");
     }
 
-    const myPackage = 'com.activlock.activ_lock';
+    const myPackage = 'com.example.activ_lock';
 
     if (mounted) {
       setState(() {
@@ -51,9 +50,9 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final lockedApps = ref.watch(lockedAppsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
-    final subTextColor = isDark ? Colors.white60 : Colors.black54;
+    
+    const textColor = ArcticTheme.deepNavy;
+    const subTextColor = ArcticTheme.softSlate;
 
     return Scaffold(
       extendBodyBehindAppBar: true, 
@@ -62,9 +61,9 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
       ),
       body: WakandaBackground(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: ModernTheme.primaryBlue))
+            ? const Center(child: CircularProgressIndicator(color: ArcticTheme.frostBlue))
             : ListView.builder(
-          padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 20),
+          padding: const EdgeInsets.fromLTRB(16, 110, 16, 20),
           itemCount: _installedApps.length,
           itemBuilder: (context, index) {
             final app = _installedApps[index];
@@ -72,29 +71,33 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
             final displayName = app.name;
 
             return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: GlassContainer(
-                opacity: isLocked ? (isDark ? 0.15 : 0.8) : (isDark ? 0.05 : 0.4),
-                color: isLocked ? ModernTheme.primaryBlue : Colors.white,
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                decoration: isLocked 
+                  ? ArcticTheme.frostDecoration.copyWith(
+                      border: Border.all(color: ArcticTheme.frostBlue, width: 1.5)
+                    )
+                  : ArcticTheme.frostDecoration,
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: app.icon != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(app.icon!, width: 40, height: 40)
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(app.icon!, width: 44, height: 44)
                         )
-                      : const Icon(Icons.android, color: ModernTheme.primaryBlue),
+                      : const Icon(Icons.android_rounded, color: ArcticTheme.frostBlue, size: 32),
                   title: Text(
                       displayName,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: textColor,
-                        fontWeight: isLocked ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15
                       )
                   ),
-                  subtitle: Text(app.packageName, style: TextStyle(fontSize: 10, color: subTextColor)),
+                  subtitle: Text(app.packageName, style: const TextStyle(fontSize: 10, color: subTextColor)),
                   trailing: Switch(
                     value: isLocked,
-                    activeColor: ModernTheme.primaryBlue,
+                    activeColor: ArcticTheme.frostBlue,
                     onChanged: (val) {
                       if (val) {
                         Navigator.push(
