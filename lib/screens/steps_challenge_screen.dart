@@ -87,6 +87,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
 
   void _handleSuccess() async {
     if (_isUnlocked) return;
+    _isUnlocked = true; // Temporary lock to prevent multiple triggers
 
     // 1. Multi-Stage Verification (Pattern)
     if (widget.needsPattern) {
@@ -104,11 +105,11 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
       );
 
       if (patternVerified != true) {
+        _isUnlocked = false; // Allow re-triggering if cancelled
         return;
       }
     }
 
-    _isUnlocked = true;
     _subscription?.cancel();
     
     await ref.read(usageServiceProvider).incrementUnlockCount(
@@ -118,24 +119,8 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
 
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: ModernTheme.slate800,
-        title: const Text("GOAL REACHED!", style: TextStyle(color: ModernTheme.accentCyan, fontWeight: FontWeight.bold)),
-        content: Text("Protocol complete. Access granted for ${widget.unlockDuration} minutes.", style: const TextStyle(color: Colors.white)),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _performUnlock();
-            },
-            child: const Text("OPEN APP", style: TextStyle(color: ModernTheme.primaryBlue)),
-          )
-        ],
-      ),
-    );
+    // Trigger unlock and pop back to target app
+    _performUnlock();
   }
 
   void _performUnlock() {
@@ -145,6 +130,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
           duration: Duration(minutes: widget.unlockDuration)
       );
     }
+    // Return true to LockOverlayScreen
     Navigator.pop(context, true);
   }
 

@@ -196,6 +196,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
 
   void _handleSuccess() async {
     if (_isDisposed) return;
+    _isDisposed = true; // Stop processing further frames immediately
 
     if (widget.needsPattern) {
       final bool? patternVerified = await Navigator.push(
@@ -212,11 +213,11 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       );
 
       if (patternVerified != true) {
-        return; // Stay here if they cancelled pattern
+        _isDisposed = false; // Resume processing if they cancelled
+        return; 
       }
     }
 
-    _isDisposed = true; // Stop processing immediately
     await _stopCamera();
     
     await ref.read(usageServiceProvider).incrementUnlockCount(
@@ -226,24 +227,8 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
 
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: ModernTheme.slate800,
-        title: const Text("UNLOCKED!", style: TextStyle(color: ModernTheme.accentCyan, fontWeight: FontWeight.bold)),
-        content: Text("Protocol complete. Access granted for ${widget.unlockDuration} minutes.", style: const TextStyle(color: Colors.white)),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context, true);
-            },
-            child: Text("OPEN APP", style: TextStyle(color: ModernTheme.primaryBlue)),
-          )
-        ],
-      ),
-    );
+    // Return true to LockOverlayScreen to trigger _performUnlock()
+    Navigator.pop(context, true);
   }
 
   InputImage? _inputImageFromCameraImage(CameraImage image) {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pattern_lock/pattern_lock.dart';
 import '../theme/modern_theme.dart';
-import '../theme/wakanda_background.dart';
-import '../widgets/glass_container.dart';
 
 enum PatternMode { setup, verify }
 
@@ -36,6 +34,14 @@ class _PatternScreenState extends State<PatternScreen> {
   }
 
   void _onPatternComplete(List<int> pattern) {
+    if (pattern.length < 3) {
+      setState(() {
+        _message = "Pattern too short (min 3 points)";
+        _isError = true;
+      });
+      return;
+    }
+
     final patternString = pattern.join(",");
 
     if (widget.mode == PatternMode.setup) {
@@ -71,22 +77,29 @@ class _PatternScreenState extends State<PatternScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // PERFORMANCE: Use solid background and NO GlassContainer/Blur
+    // during pattern interaction to prevent lag.
     return Scaffold(
-      body: WakandaBackground(
+      backgroundColor: ModernTheme.slate900,
+      body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: GlassContainer(
-              blur: 20,
-              opacity: 0.1,
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    widget.mode == PatternMode.setup ? Icons.lock_reset_rounded : Icons.lock_outline_rounded,
-                    size: 50,
-                    color: ModernTheme.primaryBlue,
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: ModernTheme.primaryBlue.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.mode == PatternMode.setup ? Icons.lock_reset_rounded : Icons.lock_outline_rounded,
+                      size: 40,
+                      color: ModernTheme.primaryBlue,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -103,15 +116,19 @@ class _PatternScreenState extends State<PatternScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-                  Container(
-                    height: 300,
-                    child: PatternLock(
-                      notSelectedColor: Colors.white24,
-                      selectedColor: ModernTheme.primaryBlue,
-                      pointRadius: 8,
-                      showInput: true,
-                      dimension: 3,
-                      onInputComplete: _onPatternComplete,
+                  // RepaintBoundary helps isolate the PatternLock's frequent repaints
+                  RepaintBoundary(
+                    child: SizedBox(
+                      height: 300,
+                      width: 300,
+                      child: PatternLock(
+                        notSelectedColor: Colors.white12,
+                        selectedColor: ModernTheme.primaryBlue,
+                        pointRadius: 10,
+                        showInput: true,
+                        dimension: 3,
+                        onInputComplete: _onPatternComplete,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),
