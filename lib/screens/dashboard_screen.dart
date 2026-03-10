@@ -16,7 +16,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsBindingObserver {
   bool _isAccessibilityEnabled = false;
-  bool _isSleepActive = false;
   Map<String, int> _totalStats = {};
   Map<String, Duration> _screenTimeMap = {};
   bool _isLoadingStats = true;
@@ -51,11 +50,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   Future<void> _loadDashboardData() async {
     final usageService = ref.read(usageServiceProvider);
     final logService = ref.read(logServiceProvider);
-    final lockService = ref.read(appLockServiceProvider);
     
     final stats = await usageService.getStats();
     final logs = await logService.getLogs();
-    final sleepActive = await lockService.isSleepModeActive();
     stats['intruderCount'] = logs.length;
     
     final lockedApps = ref.read(lockedAppsProvider);
@@ -66,7 +63,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
       setState(() {
         _totalStats = stats;
         _screenTimeMap = screenTime;
-        _isSleepActive = sleepActive;
         _isLoadingStats = false;
       });
     }
@@ -150,8 +146,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_isSleepActive)
-                    _buildSleepModeIndicator(),
                   if (!_isAccessibilityEnabled)
                     _buildAccessibilityWarning(),
 
@@ -207,40 +201,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
             Icon(Icons.arrow_forward_ios, color: Colors.redAccent, size: 14),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSleepModeIndicator() {
-    return GlassContainer(
-      color: Colors.deepPurpleAccent,
-      opacity: 0.1,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          const Icon(Icons.nightlight_round, color: Colors.deepPurpleAccent),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Sleep Mode Active",
-                  style: TextStyle(color: Colors.deepPurpleAccent, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                Text(
-                  "Apps are locked to ensure your rest.",
-                  style: TextStyle(color: Colors.white54, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/settings').then((_) => _loadDashboardData()),
-            child: const Text("ADJUST", style: TextStyle(color: Colors.deepPurpleAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }

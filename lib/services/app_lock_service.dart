@@ -40,9 +40,6 @@ class AppLockService {
   }
 
   /// Saves the list of locked apps.
-  /// It saves TWO lists:
-  /// 1. 'native_locked_apps': A simple comma-separated string for the Android Service (efficient).
-  /// 2. 'locked_apps_ui_list': A full JSON list for the Flutter UI (includes names, icons, etc).
   Future<void> saveLockedApps(List<LockedApp> apps) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -171,40 +168,16 @@ class AppLockService {
   }
 
   /// Temporarily unlocks an app by setting an expiry timestamp.
-  /// The native accessibility service will check this timestamp.
   Future<void> unlockAppTemporary(String packageName, {Duration duration = const Duration(minutes: 15)}) async {
     final prefs = await SharedPreferences.getInstance();
     
     // Calculate expiry time
     final expiry = DateTime.now().add(duration).millisecondsSinceEpoch;
     
-    // Store expiry in SharedPreferences (Accessibility service will read this)
+    // Store expiry in SharedPreferences
     await prefs.setInt('unlock_expiry_$packageName', expiry);
     
-    // Ensure the app is in the native lock list (if it was removed by old logic)
     final currentApps = await getLockedApps();
     await saveLockedApps(currentApps);
-  }
-
-  /// Checks if Sleep Mode is currently active
-  Future<bool> isSleepModeActive() async {
-    final settings = SettingsService();
-    if (!await settings.isSleepModeEnabled()) return false;
-
-    final start = await settings.getSleepStartTime();
-    final end = await settings.getSleepEndTime();
-    final now = TimeOfDay.fromDateTime(DateTime.now());
-
-    final nowTotal = now.hour * 60 + now.minute;
-    final startTotal = start.hour * 60 + start.minute;
-    final endTotal = end.hour * 60 + end.minute;
-
-    if (startTotal <= endTotal) {
-      // Same day (e.g., 10 PM to 11 PM)
-      return nowTotal >= startTotal && nowTotal < endTotal;
-    } else {
-      // Spans midnight (e.g., 10 PM to 7 AM)
-      return nowTotal >= startTotal || nowTotal < endTotal;
-    }
   }
 }

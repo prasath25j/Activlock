@@ -35,7 +35,6 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   int _unlockDuration = 15;
   bool _needsPattern = false;
   String? _lockPattern;
-  bool _isSleepModeActive = false;
 
   @override
   void initState() {
@@ -80,27 +79,22 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
     super.dispose();
   }
 
-  void _loadAppConfig() async {
+  void _loadAppConfig() {
     final lockedApps = ref.read(lockedAppsProvider);
     final currentApp = lockedApps.firstWhere(
             (app) => app.packageName == widget.lockedPackageName,
         orElse: () => LockedApp(packageName: "", appName: "")
     );
 
-    final sleepActive = await ref.read(appLockServiceProvider).isSleepModeActive();
-
-    if (mounted) {
-      setState(() {
-        _pinCode = currentApp.pinCode ?? "";
-        _exerciseType = currentApp.exerciseType;
-        _targetReps = currentApp.targetReps;
-        _maxExceptions = currentApp.dailyExceptions;
-        _unlockDuration = currentApp.unlockDurationMinutes;
-        _needsPattern = currentApp.needsPattern;
-        _lockPattern = currentApp.lockPattern;
-        _isSleepModeActive = sleepActive;
-      });
-    }
+    setState(() {
+      _pinCode = currentApp.pinCode ?? "";
+      _exerciseType = currentApp.exerciseType;
+      _targetReps = currentApp.targetReps;
+      _maxExceptions = currentApp.dailyExceptions;
+      _unlockDuration = currentApp.unlockDurationMinutes;
+      _needsPattern = currentApp.needsPattern;
+      _lockPattern = currentApp.lockPattern;
+    });
   }
 
   Future<void> _loadLimits() async {
@@ -159,11 +153,6 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   }
 
   void _startActivity(ExerciseType type) async {
-    if (_isSleepModeActive) {
-      _showSnack('Sleep Mode is active! Protocol restricted.');
-      return;
-    }
-
     if (!_canUnlock) {
       _showSnack('Daily unlock limit reached!');
       return;
@@ -241,14 +230,10 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: _isSleepModeActive ? Colors.deepPurpleAccent.withOpacity(0.1) : ModernTheme.primaryBlue.withOpacity(0.1),
+                        color: ModernTheme.primaryBlue.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        _isSleepModeActive ? Icons.nightlight_round : Icons.lock_reset_rounded, 
-                        size: 50, 
-                        color: _isSleepModeActive ? Colors.deepPurpleAccent : ModernTheme.primaryBlue
-                      ),
+                      child: const Icon(Icons.lock_reset_rounded, size: 50, color: ModernTheme.primaryBlue),
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -261,30 +246,13 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    if (_isSleepModeActive)
-                      const Text(
-                        "SLEEP MODE ACTIVE",
-                        style: TextStyle(color: Colors.deepPurpleAccent, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                      )
-                    else
-                      Text(
-                        'Unlocks: ${_stats['unlocks']}/${_stats['maxUnlocks']}',
-                        style: TextStyle(color: _canUnlock ? ModernTheme.accentCyan : ModernTheme.accentPink, fontWeight: FontWeight.bold),
-                      ),
+                    Text(
+                      'Unlocks: ${_stats['unlocks']}/${_stats['maxUnlocks']}',
+                      style: TextStyle(color: _canUnlock ? ModernTheme.accentCyan : ModernTheme.accentPink, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 40),
 
-                    if (_isSleepModeActive) ...[
-                      const Text(
-                        "Access Restricted until Morning",
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        "Rest is essential for your protocol.",
-                        style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11, fontStyle: FontStyle.italic),
-                      ),
-                    ] else if (_canUnlock) ...[
+                    if (_canUnlock) ...[
                       Text('COMPLETE ${_targetReps} ${_exerciseType == ExerciseType.steps ? 'STEPS' : 'REPS'}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
                       const SizedBox(height: 20),
                       Row(
@@ -320,52 +288,50 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                     ],
 
                     const SizedBox(height: 40),
-                    if (!_isSleepModeActive) ...[
-                      if (_showPin) ...[
-                        TextField(
-                          controller: _pinController,
-                          obscureText: true,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
-                          textAlign: TextAlign.center,
-                          decoration: InputDecoration(
-                            hintText: '••••',
-                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.05),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          ),
+                    if (_showPin) ...[
+                      TextField(
+                        controller: _pinController,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: '••••',
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.05),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: ModernTheme.accentPink),
-                            onPressed: _unlockWithPin,
-                            child: const Text('BYPASS'),
-                          ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: ModernTheme.accentPink),
+                          onPressed: _unlockWithPin,
+                          child: const Text('BYPASS'),
                         ),
-                      ] else ...[
-                        TextButton(
-                          onPressed: () {
-                            if (_canEmergency) {
-                              setState(() { _showPin = true; });
-                            } else {
-                              _showSnack('No bypasses remaining!');
-                            }
-                          },
-                          child: Text(
-                              'EMERGENCY BYPASS (${_stats['emergency']}/${_stats['maxEmergency']})',
-                              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)
-                          ),
+                      ),
+                    ] else ...[
+                      TextButton(
+                        onPressed: () {
+                          if (_canEmergency) {
+                            setState(() { _showPin = true; });
+                          } else {
+                            _showSnack('No bypasses remaining!');
+                          }
+                        },
+                        child: Text(
+                            'EMERGENCY BYPASS (${_stats['emergency']}/${_stats['maxEmergency']})',
+                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)
                         ),
-                      ]
+                      ),
                     ]
                   ],
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
