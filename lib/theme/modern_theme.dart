@@ -58,7 +58,6 @@ class ModernTheme {
           side: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
         ),
       ),
-      fontFamily: 'Inter', // Assuming standard system font if Inter isn't loaded
     );
   }
 
@@ -76,13 +75,31 @@ class ModernTheme {
         onSecondary: Colors.white,
         onSurface: slate900,
       ),
+      // CRITICAL: Explicitly set a dark text theme for the light mode
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(color: slate900),
+        displayMedium: TextStyle(color: slate900),
+        displaySmall: TextStyle(color: slate900),
+        headlineLarge: TextStyle(color: slate900),
+        headlineMedium: TextStyle(color: slate900),
+        headlineSmall: TextStyle(color: slate900),
+        titleLarge: TextStyle(color: slate900, fontWeight: FontWeight.bold),
+        titleMedium: TextStyle(color: slate900),
+        titleSmall: TextStyle(color: slate900),
+        bodyLarge: TextStyle(color: slate900),
+        bodyMedium: TextStyle(color: slate900),
+        bodySmall: TextStyle(color: Colors.black54),
+        labelLarge: TextStyle(color: slate900),
+        labelSmall: TextStyle(color: slate900),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: slate900,
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: slate900),
         titleTextStyle: TextStyle(
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
           fontSize: 20,
           letterSpacing: -0.5,
           color: slate900,
