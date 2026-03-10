@@ -23,12 +23,13 @@ class ActivLockApp extends ConsumerStatefulWidget {
   @override
   ConsumerState<ActivLockApp> createState() => _ActivLockAppState();
 }
-
 class _ActivLockAppState extends ConsumerState<ActivLockApp> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static const MethodChannel _channel = MethodChannel('com.activlock/native');
-  bool? _isFirstLaunch;
+  String? _lastLockedPackage; // To prevent double navigation
 
+  @override
+  void initState() {
   @override
   void initState() {
     super.initState();
@@ -42,27 +43,31 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
       setState(() => _isFirstLaunch = first);
     }
   }
-
-  void _configureMethodChannel() {
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == "navigateToLockScreen") {
-        final packageName = call.arguments as String?;
+void _configureMethodChannel() {
+  _channel.setMethodCallHandler((call) async {
+    if (call.method == "navigateToLockScreen") {
+      final packageName = call.arguments as String?;
+      if (packageName != null && packageName != _lastLockedPackage) {
+        _lastLockedPackage = packageName;
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
             '/lock_screen',
                 (route) => false,
             arguments: packageName
         );
       }
-    });
+    }
+  });
 
-    _checkPendingLockRequest();
-  }
+  // Check if we missed a lock request during startup
+  _checkPendingLockRequest();
+}
 
   Future<void> _checkPendingLockRequest() async {
     try {
       final String? pendingPackage = await _channel.invokeMethod('getPendingLockedPackage');
-      if (pendingPackage != null && pendingPackage.isNotEmpty) {
+      if (pendingPackage != null && pendingPackage.isNotEmpty && pendingPackage != _lastLockedPackage) {
         debugPrint("Found pending lock request for: $pendingPackage");
+        _lastLockedPackage = pendingPackage;
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
             '/lock_screen',
                 (route) => false,
@@ -95,9 +100,11 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
       initialRoute: _isFirstLaunch! ? '/onboarding' : '/',
       onGenerateRoute: (settings) {
         if (settings.name == '/') {
+          _lastLockedPackage = null;
           return MaterialPageRoute(builder: (_) => const DashboardScreen());
         }
         else if (settings.name == '/onboarding') {
+          _lastLockedPackage = null;
           return MaterialPageRoute(builder: (_) => const OnboardingScreen());
         }
         else if (settings.name == '/app_selection') {

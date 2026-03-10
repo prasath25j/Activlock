@@ -207,17 +207,25 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     if (widget.needsBiometric) {
       final LocalAuthentication auth = LocalAuthentication();
       try {
-        final bool didAuthenticate = await auth.authenticate(
-          localizedReason: 'Verification required to unlock app',
-          biometricOnly: true,
-        );
-        if (!didAuthenticate) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Biometric verification failed. Try again.")),
-            );
+        final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+        final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+
+        if (canAuthenticate) {
+          final bool didAuthenticate = await auth.authenticate(
+            localizedReason: 'Verification required to unlock app',
+            biometricOnly: true,
+          );
+          if (!didAuthenticate) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Biometric verification failed. Try again.")),
+              );
+            }
+            return;
           }
-          return;
+        } else {
+          debugPrint("Biometrics not supported or available.");
+          // Fallback: Proceed without biometrics if not supported on hardware
         }
       } catch (e) {
         debugPrint("Biometric Error: $e");

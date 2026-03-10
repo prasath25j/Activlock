@@ -9,19 +9,9 @@ import android.content.SharedPreferences
 class AppAccessibilityService : AccessibilityService() {
     private var nativeLockedApps: List<String> = emptyList()
 
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val reloadRunnable = object : Runnable {
-        override fun run() {
-            loadLockedApps()
-            handler.postDelayed(this, 2000) // Poll every 2 seconds
-        }
-    }
-
     override fun onServiceConnected() {
         super.onServiceConnected()
         loadLockedApps()
-        // Start polling
-        handler.post(reloadRunnable)
     }
 
     private fun loadLockedApps() {
@@ -30,19 +20,15 @@ class AppAccessibilityService : AccessibilityService() {
         nativeLockedApps = if (rawList.isNotEmpty()) rawList.split(",") else emptyList()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        handler.removeCallbacks(reloadRunnable)
-    }
-
     private var lastLockTime: Long = 0
     private val LOCK_TIMEOUT = 1000L // 1 second cooldown
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
-        // We now listen to STATE_CHANGED and CONTENT_CHANGED.
-        // Filter out noise.
+        // Always reload the list before checking, to catch immediate unlocks from Flutter
+        loadLockedApps()
+
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && 
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             return
@@ -50,14 +36,14 @@ class AppAccessibilityService : AccessibilityService() {
 
         val packageName = event.packageName?.toString() ?: return
 
+        // Skip if it's our own app
+        if (packageName == "com.example.activ_lock") return
+
         // Deduplicate rapid firing events
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastLockTime < LOCK_TIMEOUT) return
 
         if (nativeLockedApps.contains(packageName)) {
-            // Check if it's really the app coming to foreground (simple check)
-            // For now, if we match the package, we lock it.
-            
             // App is locked! Launch our lock screen
             lastLockTime = currentTime
             android.util.Log.d("ActivLock", "Locking package: $packageName")
@@ -69,7 +55,7 @@ class AppAccessibilityService : AccessibilityService() {
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP or 
                     Intent.FLAG_ACTIVITY_NO_USER_ACTION or 
-                    Intent.FLAG_ACTIVITY_NO_HISTORY // Don't keep intent in history stack
+                    Intent.FLAG_ACTIVITY_NO_HISTORY
             
             intent.putExtra("locked_package", packageName)
             intent.putExtra("route", "/lock_screen")
