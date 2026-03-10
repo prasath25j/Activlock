@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:local_auth/local_auth.dart';
 import '../models/exercise_type.dart';
 import '../providers/app_providers.dart';
 import '../theme/modern_theme.dart';
@@ -13,12 +14,14 @@ class StepsChallengeScreen extends ConsumerStatefulWidget {
   final String? lockedPackageName;
   final int targetSteps;
   final int unlockDuration;
+  final bool needsBiometric;
 
   const StepsChallengeScreen({
     super.key,
     this.lockedPackageName,
     required this.targetSteps,
     required this.unlockDuration,
+    this.needsBiometric = false,
   });
 
   @override
@@ -31,6 +34,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
   int _initialSteps = -1;
   int _currentSteps = 0;
   String _status = 'Initializing...';
+  bool _isUnlocked = false;
 
   @override
   void initState() {
@@ -59,6 +63,8 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
     if (_initialSteps == -1) {
       _initialSteps = event.steps;
     }
+    if (_isUnlocked) return;
+
     setState(() {
       _currentSteps = event.steps - _initialSteps;
       _status = 'Tracking Steps';
@@ -69,7 +75,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
     }
   }
 
-  void _onDone() => print("Finished tracking steps");
+  void _onDone() => debugPrint("Finished tracking steps");
 
   void _onError(error) {
     setState(() {
@@ -78,7 +84,37 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
   }
 
   void _handleSuccess() async {
+    if (_isUnlocked) return;
+
+    // 1. Multi-Stage Verification
+    if (widget.needsBiometric) {
+      final LocalAuthentication auth = LocalAuthentication();
+      try {
+        final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+        final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+
+        if (canAuthenticate) {
+          final bool didAuthenticate = await auth.authenticate(
+            localizedReason: 'Verification required to unlock app',
+            biometricOnly: true,
+          );
+          if (!didAuthenticate) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Biometric verification failed. Try again.")),
+              );
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint("Biometric Error: $e");
+      }
+    }
+
+    _isUnlocked = true;
     _subscription?.cancel();
+    
     await ref.read(usageServiceProvider).incrementUnlockCount(
       type: ExerciseType.steps,
       reps: widget.targetSteps,
@@ -92,7 +128,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: ModernTheme.slate800,
         title: const Text("GOAL REACHED!", style: TextStyle(color: ModernTheme.accentCyan, fontWeight: FontWeight.bold)),
-        content: Text("Access granted for ${widget.unlockDuration} minutes."),
+        content: Text("Protocol complete. Access granted for ${widget.unlockDuration} minutes.", style: const TextStyle(color: Colors.white)),
         actions: [
           TextButton(
             onPressed: () {
@@ -113,7 +149,6 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
           duration: Duration(minutes: widget.unlockDuration)
       );
     }
-    // Go back to the dashboard/close the overlay
     Navigator.pop(context, true);
   }
 
@@ -185,12 +220,6 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
                     onPressed: () => Navigator.pop(context),
                     child: Text("CANCEL", style: TextStyle(color: Colors.white.withOpacity(0.3))),
                   ),
-                  // For testing purposes
-                  if (true) 
-                    TextButton(
-                      onPressed: _handleSuccess,
-                      child: Text("DEBUG: MANUAL UNLOCK", style: TextStyle(color: ModernTheme.accentPink.withOpacity(0.5), fontSize: 10)),
-                    ),
                 ],
               ),
             ),
