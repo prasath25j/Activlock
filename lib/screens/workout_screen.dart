@@ -210,7 +210,6 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
         final bool didAuthenticate = await auth.authenticate(
           localizedReason: 'Verification required to unlock app',
           biometricOnly: true,
-          stickyAuth: true,
         );
         if (!didAuthenticate) {
           if (mounted) {
