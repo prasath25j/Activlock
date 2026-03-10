@@ -145,14 +145,19 @@ class AppLockService {
     return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
   }
 
-  /// Adds a new app to the lock list
+  /// Adds or updates an app in the lock list
   Future<void> addLockedApp(LockedApp app) async {
     final currentApps = await getLockedApps();
-    // Prevent duplicates
-    if (!currentApps.any((a) => a.packageName == app.packageName)) {
+    
+    final index = currentApps.indexWhere((a) => a.packageName == app.packageName);
+    if (index != -1) {
+      // Update existing
+      currentApps[index] = app;
+    } else {
+      // Add new
       currentApps.add(app);
-      await saveLockedApps(currentApps);
     }
+    await saveLockedApps(currentApps);
   }
 
   /// Removes an app from the lock list
