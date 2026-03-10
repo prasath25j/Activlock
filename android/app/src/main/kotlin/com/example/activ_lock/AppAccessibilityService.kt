@@ -5,12 +5,14 @@ import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 
 class AppAccessibilityService : AccessibilityService() {
     private var nativeLockedApps: List<String> = emptyList()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        Log.d("ActivLock", "Accessibility Service Connected")
         loadLockedApps()
     }
 
@@ -18,12 +20,15 @@ class AppAccessibilityService : AccessibilityService() {
         val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val rawList = prefs.getString("flutter.native_locked_apps", "") ?: ""
         nativeLockedApps = if (rawList.isNotEmpty()) rawList.split(",") else emptyList()
+        Log.d("ActivLock", "Loaded Locked Apps: $nativeLockedApps")
     }
 
     private fun isAppTemporarilyUnlocked(packageName: String): Boolean {
         val prefs: SharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val expiry = prefs.getLong("flutter.unlock_expiry_$packageName", 0L)
-        return System.currentTimeMillis() < expiry
+        val isUnlocked = System.currentTimeMillis() < expiry
+        if (isUnlocked) Log.d("ActivLock", "$packageName is temporarily unlocked")
+        return isUnlocked
     }
 
     private fun isSleepModeActive(): Boolean {
@@ -44,54 +49,59 @@ class AppAccessibilityService : AccessibilityService() {
         val startTotal = startHour * 60 + startMin
         val endTotal = endHour * 60 + endMin
 
-        return if (startTotal <= endTotal) {
+        val isActive = if (startTotal <= endTotal) {
             nowTotal in startTotal until endTotal
         } else {
             nowTotal >= startTotal || nowTotal < endTotal
         }
+        
+        if (isActive) Log.d("ActivLock", "Sleep Mode is currently ACTIVE")
+        return isActive
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
-        loadLockedApps()
-
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && 
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+        // Window state change is the primary event for app launches
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             return
         }
 
         val packageName = event.packageName?.toString() ?: return
-        if (packageName == "com.example.activ_lock") return
+        
+        // Dynamic self-skip
+        if (packageName == getPackageName()) return
+
+        // Refresh list on every window change to be absolutely sure
+        loadLockedApps()
 
         if (nativeLockedApps.contains(packageName)) {
             val isSleep = isSleepModeActive()
             val isTempUnlocked = isAppTemporarilyUnlocked(packageName)
 
-            // STRICT ENFORCEMENT: 
-            // If Sleep Mode is ON, we ALWAYS lock. 
-            // Only if Sleep Mode is OFF do we allow temporary unlocks.
-            if (!isSleep && isTempUnlocked) {
-                return 
+            // LOGIC: 
+            // 1. If Sleep Mode is ON -> ALWAYS LOCK
+            // 2. If Sleep Mode is OFF -> Only lock if NOT temporarily unlocked
+            if (isSleep || !isTempUnlocked) {
+                Log.d("ActivLock", "ENFORCING LOCK: $packageName (Sleep: $isSleep, TempUnlocked: $isTempUnlocked)")
+                
+                val intent = Intent(this, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                
+                intent.putExtra("locked_package", packageName)
+                intent.putExtra("route", "/lock_screen")
+                
+                startActivity(intent)
+            } else {
+                Log.d("ActivLock", "ALLOWING ACCESS: $packageName is temporarily unlocked.")
             }
-
-            android.util.Log.d("ActivLock", "Locking package: $packageName (SleepMode: $isSleep)")
-            
-            val intent = Intent(this, MainActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or 
-                    Intent.FLAG_ACTIVITY_NO_USER_ACTION
-            
-            intent.putExtra("locked_package", packageName)
-            intent.putExtra("route", "/lock_screen")
-            
-            startActivity(intent)
         }
     }
 
     override fun onInterrupt() {
-        // Required method
+        Log.d("ActivLock", "Accessibility Service Interrupted")
     }
 }
