@@ -11,14 +11,6 @@ class UsageService {
   static const String _keyTotalPushups = 'total_pushups';
   static const String _keyTotalSteps = 'total_steps_unlock';
 
-  // New Keys for User Settings
-  static const String _keyMaxDailyUnlocks = 'max_daily_unlocks';
-  static const String _keyMaxEmergency = 'max_emergency_usage';
-
-  // Default values if not set
-  static const int _defaultMaxUnlocks = 10;
-  static const int _defaultMaxEmergency = 3;
-
   Future<void> _checkAndResetDailyCounts() async {
     final prefs = await SharedPreferences.getInstance();
     final lastDateStr = prefs.getString(_keyLastResetDate);
@@ -32,47 +24,7 @@ class UsageService {
     }
   }
 
-  // --- GETTERS (WITH USER SETTINGS) ---
-
-  Future<int> getMaxDailyUnlocks() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keyMaxDailyUnlocks) ?? _defaultMaxUnlocks;
-  }
-
-  Future<int> getMaxEmergencyUsage() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keyMaxEmergency) ?? _defaultMaxEmergency;
-  }
-
-  // --- SETTERS ---
-
-  Future<void> setMaxDailyUnlocks(int limit) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_keyMaxDailyUnlocks, limit);
-  }
-
-  Future<void> setMaxEmergencyUsage(int limit) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_keyMaxEmergency, limit);
-  }
-
   // --- LOGIC ---
-
-  Future<bool> canUnlock() async {
-    await _checkAndResetDailyCounts();
-    final prefs = await SharedPreferences.getInstance();
-    final count = prefs.getInt(_keyDailyUnlockCount) ?? 0;
-    final limit = await getMaxDailyUnlocks();
-    return count < limit;
-  }
-
-  Future<bool> canUseEmergency() async {
-    await _checkAndResetDailyCounts();
-    final prefs = await SharedPreferences.getInstance();
-    final count = prefs.getInt(_keyDailyEmergencyCount) ?? 0;
-    final limit = await getMaxEmergencyUsage();
-    return count < limit;
-  }
 
   Future<void> incrementUnlockCount({ExerciseType? type, int reps = 0}) async {
     final prefs = await SharedPreferences.getInstance();
@@ -105,8 +57,6 @@ class UsageService {
     return {
       'unlocks': prefs.getInt(_keyDailyUnlockCount) ?? 0,
       'emergency': prefs.getInt(_keyDailyEmergencyCount) ?? 0,
-      'maxUnlocks': await getMaxDailyUnlocks(),
-      'maxEmergency': await getMaxEmergencyUsage(),
       'totalSquats': prefs.getInt(_keyTotalSquats) ?? 0,
       'totalPushups': prefs.getInt(_keyTotalPushups) ?? 0,
       'totalSteps': prefs.getInt(_keyTotalSteps) ?? 0,

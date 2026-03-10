@@ -13,81 +13,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _isLoading = true;
-
-  // Limit Values
-  int _dailyUnlockLimit = 3;
-  int _emergencyLimit = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final usage = ref.read(usageServiceProvider);
-    final dLimit = await usage.getMaxDailyUnlocks();
-    final eLimit = await usage.getMaxEmergencyUsage();
-
-    if (mounted) {
-      setState(() {
-        _dailyUnlockLimit = dLimit;
-        _emergencyLimit = eLimit;
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _handleSaveLimits() async {
-    final usage = ref.read(usageServiceProvider);
-    await usage.setMaxDailyUnlocks(_dailyUnlockLimit);
-    await usage.setMaxEmergencyUsage(_emergencyLimit);
-    _showSnack("Global Limits Updated!");
-  }
-
-  void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? ModernTheme.accentPink : ModernTheme.primaryBlue,
-      ),
-    );
-  }
-
-  Widget _buildLimitSlider(String label, int value, int min, int max, Color accentColor, ValueChanged<int> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text("$value", style: TextStyle(color: accentColor, fontSize: 20, fontWeight: FontWeight.w900)),
-          ],
-        ),
-        Slider(
-          value: value.toDouble(),
-          min: min.toDouble(),
-          max: max.toDouble(),
-          divisions: max - min,
-          activeColor: accentColor,
-          inactiveColor: accentColor.withOpacity(0.1),
-          onChanged: (val) => onChanged(val.toInt()),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
     final isDark = themeMode == ThemeMode.dark;
-
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: ModernTheme.primaryBlue)));
-    }
-
     final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
 
     return Scaffold(
@@ -119,36 +48,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               
               const SizedBox(height: 32),
-
-              // --- SECTION 2: LIMITS ---
-              _buildSectionTitle("GLOBAL CONSTRAINTS", ModernTheme.accentPink),
-              const SizedBox(height: 12),
-              GlassContainer(
-                opacity: 0.05,
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _buildLimitSlider("Daily Activity Unlocks", _dailyUnlockLimit, 1, 50, ModernTheme.accentCyan, (val) {
-                      setState(() => _dailyUnlockLimit = val);
-                    }),
-                    const SizedBox(height: 20),
-                    _buildLimitSlider("Emergency Bypasses", _emergencyLimit, 0, 10, ModernTheme.accentPink, (val) {
-                      setState(() => _emergencyLimit = val);
-                    }),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _handleSaveLimits,
-                        child: const Text("SAVE GLOBAL LIMITS"),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
               
               // Information Note
               GlassContainer(
@@ -161,7 +60,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        "Note: These are global defaults. You can override them for specific apps in their individual settings.",
+                        "Note: Security constraints are now configured individually for each application.",
                         style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 11),
                       ),
                     ),
