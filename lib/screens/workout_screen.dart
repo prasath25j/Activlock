@@ -204,6 +204,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
         MaterialPageRoute(
           builder: (_) => PatternScreen(
             mode: PatternMode.verify,
+            packageName: widget.lockedPackageName,
             initialPattern: widget.lockPattern,
             onComplete: (pattern) {
               Navigator.pop(context, true);

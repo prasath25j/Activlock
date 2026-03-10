@@ -3,13 +3,15 @@ import '../models/locked_app.dart';
 import '../services/app_lock_service.dart';
 import '../services/usage_service.dart';
 import '../services/settings_service.dart'; // Import SettingsService
+import '../services/log_service.dart'; // New
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart'; // Needed for ThemeMode
 
 final appLockServiceProvider = Provider((ref) => AppLockService());
 final usageServiceProvider = Provider((ref) => UsageService());
-final settingsServiceProvider = Provider((ref) => SettingsService()); // New Provider
+final settingsServiceProvider = Provider((ref) => SettingsService());
+final logServiceProvider = Provider((ref) => LogService()); // New Provider
 
 final lockedAppsProvider = StateNotifierProvider<LockedAppsNotifier, List<LockedApp>>((ref) {
   final service = ref.watch(appLockServiceProvider);

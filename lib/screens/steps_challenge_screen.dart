@@ -96,6 +96,7 @@ class _StepsChallengeScreenState extends ConsumerState<StepsChallengeScreen> {
         MaterialPageRoute(
           builder: (_) => PatternScreen(
             mode: PatternMode.verify,
+            packageName: widget.lockedPackageName,
             initialPattern: widget.lockPattern,
             onComplete: (pattern) {
               Navigator.pop(context, true);

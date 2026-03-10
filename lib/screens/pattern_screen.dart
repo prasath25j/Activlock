@@ -1,29 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pattern_lock/pattern_lock.dart';
+import 'package:camera/camera.dart';
 import '../theme/modern_theme.dart';
+import '../providers/app_providers.dart';
 
 enum PatternMode { setup, verify }
 
-class PatternScreen extends StatefulWidget {
+class PatternScreen extends ConsumerStatefulWidget {
   final PatternMode mode;
   final String? initialPattern;
+  final String? packageName; // Required for logging
   final Function(String) onComplete;
 
   const PatternScreen({
     super.key,
     required this.mode,
     this.initialPattern,
+    this.packageName,
     required this.onComplete,
   });
 
   @override
-  State<PatternScreen> createState() => _PatternScreenState();
+  ConsumerState<PatternScreen> createState() => _PatternScreenState();
 }
 
-class _PatternScreenState extends State<PatternScreen> {
+class _PatternScreenState extends ConsumerState<PatternScreen> {
   String? _firstPattern;
   String _message = "";
   bool _isError = false;
+  int _failedAttempts = 0;
+  
+  CameraController? _cameraController;
+  bool _isCapturing = false;
 
   @override
   void initState() {
@@ -31,6 +40,21 @@ class _PatternScreenState extends State<PatternScreen> {
     _message = widget.mode == PatternMode.setup 
         ? "Draw your security pattern" 
         : "Draw pattern to unlock";
+    
+    if (widget.mode == PatternMode.verify) {
+      _initCamera();
+    }
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final front = cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front);
+      _cameraController = CameraController(front, ResolutionPreset.low, enableAudio: false);
+      await _cameraController!.initialize();
+    } catch (e) {
+      debugPrint("Intruder Camera Error: $e");
+    }
   }
 
   void _onPatternComplete(List<int> pattern) {
@@ -67,18 +91,47 @@ class _PatternScreenState extends State<PatternScreen> {
       if (widget.initialPattern == patternString) {
         widget.onComplete(patternString);
       } else {
+        _failedAttempts++;
         setState(() {
           _message = "Incorrect pattern. Try again.";
           _isError = true;
         });
+
+        // Capture after 2 failed attempts
+        if (_failedAttempts >= 2) {
+          _captureIntruder();
+        }
       }
     }
   }
 
+  Future<void> _captureIntruder() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized || _isCapturing) return;
+    
+    _isCapturing = true;
+    try {
+      final XFile photo = await _cameraController!.takePicture();
+      await ref.read(logServiceProvider).addLog(
+        widget.packageName ?? "Unknown", 
+        photo.path, 
+        "Pattern Failed ($_failedAttempts attempts)"
+      );
+      debugPrint("Intruder Captured!");
+    } catch (e) {
+      debugPrint("Capture Error: $e");
+    } finally {
+      _isCapturing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // PERFORMANCE: Use solid background and NO GlassContainer/Blur
-    // during pattern interaction to prevent lag.
     return Scaffold(
       backgroundColor: ModernTheme.slate900,
       body: SafeArea(
@@ -116,7 +169,6 @@ class _PatternScreenState extends State<PatternScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-                  // RepaintBoundary helps isolate the PatternLock's frequent repaints
                   RepaintBoundary(
                     child: SizedBox(
                       height: 300,

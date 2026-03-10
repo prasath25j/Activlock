@@ -49,7 +49,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
 
   Future<void> _loadDashboardData() async {
     final usageService = ref.read(usageServiceProvider);
+    final logService = ref.read(logServiceProvider);
+    
     final stats = await usageService.getStats();
+    final logs = await logService.getLogs();
+    stats['intruderCount'] = logs.length;
     
     final lockedApps = ref.read(lockedAppsProvider);
     final packageNames = lockedApps.map((a) => a.packageName).toList();
@@ -202,18 +206,44 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   }
 
   Widget _buildActivityGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.6,
+    return Column(
       children: [
-        _buildStatCard("SQUATS", _totalStats['totalSquats']?.toString() ?? "0", Icons.accessibility_new_rounded, ModernTheme.primaryBlue),
-        _buildStatCard("PUSHUPS", _totalStats['totalPushups']?.toString() ?? "0", Icons.fitness_center_rounded, ModernTheme.accentPink),
-        _buildStatCard("STEPS", _totalStats['totalSteps']?.toString() ?? "0", Icons.directions_walk_rounded, ModernTheme.accentCyan),
-        _buildStatCard("UNLOCKS", _totalStats['unlocks']?.toString() ?? "0", Icons.lock_open_rounded, Colors.orangeAccent),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.6,
+          children: [
+            _buildStatCard("SQUATS", _totalStats['totalSquats']?.toString() ?? "0", Icons.accessibility_new_rounded, ModernTheme.primaryBlue),
+            _buildStatCard("PUSHUPS", _totalStats['totalPushups']?.toString() ?? "0", Icons.fitness_center_rounded, ModernTheme.accentPink),
+            _buildStatCard("STEPS", _totalStats['totalSteps']?.toString() ?? "0", Icons.directions_walk_rounded, ModernTheme.accentCyan),
+            _buildStatCard("UNLOCKS", _totalStats['unlocks']?.toString() ?? "0", Icons.lock_open_rounded, Colors.orangeAccent),
+          ],
+        ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: () => Navigator.pushNamed(context, '/intruder_logs').then((_) => _loadDashboardData()),
+          child: GlassContainer(
+            opacity: 0.1,
+            color: ModernTheme.accentPink,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Row(
+              children: [
+                const Icon(Icons.camera_front_rounded, color: ModernTheme.accentPink),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    "INTRUDER LOGS (${_totalStats['intruderCount'] ?? 0})",
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.white.withOpacity(0.3), size: 14),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

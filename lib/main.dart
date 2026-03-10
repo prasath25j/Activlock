@@ -11,6 +11,7 @@ import 'screens/workout_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/steps_challenge_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/intruder_logs_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -118,6 +119,9 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
           final args = settings.arguments;
           final packageName = args is String ? args : null;
           return MaterialPageRoute(builder: (_) => LockOverlayScreen(lockedPackageName: packageName));
+        }
+        else if (settings.name == '/intruder_logs') {
+          return MaterialPageRoute(builder: (_) => const IntruderLogsScreen());
         }
         else if (settings.name == '/workout') {
           final args = settings.arguments;

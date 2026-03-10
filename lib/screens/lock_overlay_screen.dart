@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:camera/camera.dart';
 import '../providers/app_providers.dart';
 import '../models/locked_app.dart';
 import '../models/exercise_type.dart';
@@ -19,6 +20,9 @@ class LockOverlayScreen extends ConsumerStatefulWidget {
 class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _showPin = false;
+  int _failedPinAttempts = 0;
+  CameraController? _cameraController;
+  bool _isCapturing = false;
 
   final Map<String, int> _stats = {'unlocks': 0, 'emergency': 0, 'maxUnlocks': 3, 'maxEmergency': 1};
   bool _canUnlock = false;
@@ -37,6 +41,42 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
     super.initState();
     _loadAppConfig();
     _loadLimits();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final front = cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front);
+      _cameraController = CameraController(front, ResolutionPreset.low, enableAudio: false);
+      await _cameraController!.initialize();
+    } catch (e) {
+      debugPrint("Intruder Camera Error: $e");
+    }
+  }
+
+  Future<void> _captureIntruder(String reason) async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized || _isCapturing) return;
+    _isCapturing = true;
+    try {
+      final XFile photo = await _cameraController!.takePicture();
+      await ref.read(logServiceProvider).addLog(
+        widget.lockedPackageName ?? "Unknown", 
+        photo.path, 
+        reason
+      );
+    } catch (e) {
+      debugPrint("Capture Error: $e");
+    } finally {
+      _isCapturing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    _pinController.dispose();
+    super.dispose();
   }
 
   void _loadAppConfig() {
@@ -104,7 +144,11 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
         _showSnack('Emergency limit reached!');
       }
     } else {
+      _failedPinAttempts++;
       _showSnack('Invalid Access Code!');
+      if (_failedPinAttempts >= 3) {
+        _captureIntruder("PIN Failed ($_failedPinAttempts attempts)");
+      }
     }
   }
 
