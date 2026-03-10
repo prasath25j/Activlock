@@ -86,9 +86,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   @override
   Widget build(BuildContext context) {
     final lockedApps = ref.watch(lockedAppsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
-    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
+    final textColor = isDark ? Colors.white : ModernTheme.slate900;
     final subTextColor = isDark ? Colors.white60 : Colors.black54;
 
     return Scaffold(
@@ -249,6 +250,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   }
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassContainer(
       opacity: 0.05,
       padding: const EdgeInsets.all(12),
@@ -258,8 +260,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
         children: [
           Icon(icon, color: color, size: 20),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: isDark ? Colors.white : ModernTheme.slate900)),
+          Text(label, style: TextStyle(fontSize: 10, color: isDark ? Colors.white.withOpacity(0.5) : Colors.black54, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -305,8 +307,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
           trailing: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text("${app.usedUnlocks}", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white)),
-              const Text("UNLOCKS", style: TextStyle(fontSize: 8, color: Colors.grey)),
+              Text("${app.usedUnlocks}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: isDark ? Colors.white : ModernTheme.slate900)),
+              Text("UNLOCKS", style: TextStyle(fontSize: 8, color: isDark ? Colors.grey : Colors.black54)),
             ],
           ),
           onTap: () {
@@ -342,7 +344,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
           const SizedBox(height: 24),
           Text(
             'NO ACTIVE PROTOCOLS',
-            style: TextStyle(fontWeight: FontWeight.w800, color: textColor.withOpacity(0.8)),
+            style: TextStyle(fontWeight: FontWeight.w800, color: textColor),
           ),
           const SizedBox(height: 8),
           Text('Start by securing an application', style: TextStyle(color: subTextColor)),

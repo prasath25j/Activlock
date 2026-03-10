@@ -52,7 +52,7 @@ class _AppSelectionScreenState extends ConsumerState<AppSelectionScreen> {
   Widget build(BuildContext context) {
     final lockedApps = ref.watch(lockedAppsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
+    final textColor = isDark ? Colors.white : ModernTheme.slate900;
     final subTextColor = isDark ? Colors.white60 : Colors.black54;
 
     return Scaffold(

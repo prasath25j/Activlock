@@ -298,7 +298,7 @@ class _AppConfigurationScreenState extends ConsumerState<AppConfigurationScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? ModernTheme.slate50 : ModernTheme.slate900;
+    final textColor = isDark ? Colors.white : ModernTheme.slate900;
     final subTextColor = isDark ? Colors.white54 : Colors.black54;
     final inputFillColor = isDark ? ModernTheme.slate800.withOpacity(0.5) : Colors.grey[100]!;
 
