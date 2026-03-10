@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'theme/modern_theme.dart';
+import 'theme/arctic_theme.dart';
 import 'models/exercise_type.dart';
 import 'screens/dashboard_screen.dart';
 import 'providers/app_providers.dart';
@@ -60,7 +60,6 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
       }
     });
 
-    // Check if we missed a lock request during startup
     _checkPendingLockRequest();
   }
 
@@ -79,22 +78,22 @@ class _ActivLockAppState extends ConsumerState<ActivLockApp> {
     } on PlatformException catch (e) {
       debugPrint("Failed to check pending lock: '${e.message}'.");
     }
-  import 'theme/arctic_theme.dart';
-  ...
-    @override
-    Widget build(BuildContext context) {
-      if (_isFirstLaunch == null) {
-        return const MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(body: Center(child: CircularProgressIndicator())),
-        );
-      }
+  }
 
-      return MaterialApp(
-        title: 'ActivLock',
+  @override
+  Widget build(BuildContext context) {
+    if (_isFirstLaunch == null) {
+      return const MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: ArcticTheme.themeData,
-        navigatorKey: navigatorKey,
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
+    return MaterialApp(
+      title: 'ActivLock',
+      debugShowCheckedModeBanner: false,
+      theme: ArcticTheme.themeData,
+      navigatorKey: navigatorKey,
       initialRoute: _isFirstLaunch! ? '/onboarding' : '/',
       onGenerateRoute: (settings) {
         if (settings.name == '/') {
