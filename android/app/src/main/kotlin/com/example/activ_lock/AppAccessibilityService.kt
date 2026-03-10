@@ -75,15 +75,19 @@ class AppAccessibilityService : AccessibilityService() {
         if (currentTime - lastLockTime < LOCK_TIMEOUT) return
 
         if (nativeLockedApps.contains(packageName)) {
-            // CHECK SLEEP MODE: If sleep mode is active, lock REGARDLESS of temporary unlock
-            if (isSleepModeActive()) {
-                // Lock it
-            } else if (isAppTemporarilyUnlocked(packageName)) {
+            val isSleep = isSleepModeActive()
+            val isTempUnlocked = isAppTemporarilyUnlocked(packageName)
+
+            // IF SLEEP MODE IS ON: Lock it NO MATTER WHAT.
+            // IF NOT SLEEP MODE: Only lock if it's not temporarily unlocked.
+            if (isSleep) {
+                android.util.Log.d("ActivLock", "Sleep Mode Active: Forcing lock for $packageName")
+            } else if (isTempUnlocked) {
                 // Not in sleep mode AND temporarily unlocked, so let it stay open
                 return 
             }
 
-            // App is locked or expiry reached! Launch our lock screen
+            // Launch our lock screen
             lastLockTime = currentTime
             android.util.Log.d("ActivLock", "Locking package: $packageName")
             
